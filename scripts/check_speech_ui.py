@@ -49,7 +49,7 @@ with tempfile.TemporaryDirectory(prefix='kadr-speech-ui-') as tmp:
                 page.wait_for_function('speechAvailable && !!project')
                 page.wait_for_timeout(400)
                 assert not media_requests,'Empty project started media search'
-                page.locator('#auto-after-subtitles').uncheck()
+                page.evaluate('project.auto_media_after_subtitles=false;save()')
                 page.locator('#file-voice').set_input_files(voice)
                 page.wait_for_function('speechRecord && speechRecord.id')
                 assert len(starts)==1 and starts[0]['model']=='small' and starts[0]['language']=='ru'
@@ -79,6 +79,7 @@ with tempfile.TemporaryDirectory(prefix='kadr-speech-ui-') as tmp:
                 download=event.value;dest=work/'export.srt';download.save_as(dest)
                 assert '00:00:01,234 --> 00:00:06,345' in dest.read_text()
                 assert '1773' in dest.read_text()
+                page.locator('[data-step="1"]').click()
                 page.locator('#speech-start').click();page.wait_for_function('speechRecord && speechRecord.id')
                 page.locator('#speech-cancel').click();page.wait_for_function('!speechRecord')
                 assert cancels

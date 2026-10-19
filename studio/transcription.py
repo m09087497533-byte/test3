@@ -117,6 +117,9 @@ def _watch(identifier, process):
 
 
 def error_message(exc):
+    from pydantic import ValidationError
+    if isinstance(exc, ValidationError):
+        return 'Не удалось построить сцены по распознанной речи. Обновите Кадр и повторите распознавание или загрузите SRT/VTT.'
     name = type(exc).__name__.lower()
     message = str(exc).lower()
     if any(s in name + ' ' + message for s in ('connect', 'timeout', 'network', 'download', 'huggingface', 'localentrynotfound', 'certificate', 'proxy', '403 forbidden')):

@@ -1,7 +1,8 @@
 """Automatic documentary composition from timed narration, without scene setup."""
 import math
 import re
-from .models import Project, Scene, TextEvent, frame_count
+from .models import Project, Scene, frame_count
+from .event_timing import scene_events
 from .narration import emphasis_events,has_stem
 from .limits import MAX_SCENES
 from .reference_effects import apply_reference_effects
@@ -99,14 +100,7 @@ def automatic_project(project, *, rebuild=True):
             if title:
                 scene.picture_effect='split';scene.document_title='Книга '+title.group(1)
                 scene.document_caption='Последняя глава' if has_stem(('последн',),basis) else ''
-        for event in events:
-            if event['start']>=finish or event['end']<=start:continue
-            local={key:value for key,value in event.items() if key!='priority'}
-            local['span']=event['end']-event['start']
-            local['elapsed']=max(0,start-event['start'])
-            local['start']=max(0,event['start']-start)
-            local['end']=min(scene.duration,event['end']-start)
-            scene.text_events.append(TextEvent.model_validate(local))
+        scene.text_events=scene_events(events,a,b,scene.duration)
         if scene.text_events:
             event=scene.text_events[0]
             scene.title=event.text;scene.title_layout=event.layout;scene.title_effect=event.effect

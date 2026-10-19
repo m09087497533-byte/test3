@@ -7,6 +7,7 @@ function paintSpeech() {
   $('#speech-start').disabled = !!speechRecord || !project?.voice_id || !speechAvailable;
   $('#speech-cancel').classList.toggle('hidden', !speechRecord);
   $('#speech-progress').classList.toggle('hidden', !speechRecord);
+  paintWorkflow();
 }
 async function stopSpeech() {
   let old = speechRecord;
@@ -34,8 +35,8 @@ async function pollSpeech(record, owner) {
         $('#speech-status').textContent='Текст или озвучка изменились. Результат распознавания не заменяет ваши правки.'; return;
       }
       applyTranscript(state.result);
+      transcriptReady();
       toast(`Распознано ${project.subtitles.length} фраз. Проверь имена и термины в редакторе.`);
-      if (project.auto_media_after_subtitles ?? true) await startAutomaticMedia(false);
       return;
     }
     if (['error','cancelled','interrupted'].includes(state.status)) {
@@ -52,6 +53,8 @@ async function startSpeech() {
   if (speechRecord) return;
   if (!project.voice_id) throw new Error('Сначала загрузи озвучку.');
   if (autoMediaTask) throw new Error('Сначала останови подбор материалов.');
+  if(!speechAvailable)throw new Error('Распознавание не установлено. Запусти «Обновить Кадр.command» или добавь SRT/VTT.');
+  await enterWorkflowStep(1,{scroll:false,auto:false});
   const old=localStorage.getItem(speechStorage);
   if (old) {
     const record=JSON.parse(old);

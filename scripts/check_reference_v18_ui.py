@@ -25,7 +25,7 @@ with tempfile.TemporaryDirectory(prefix='kadr18-ui-') as tmp:
                 page.on('pageerror',lambda e:errors.append(str(e)))
                 page.on('request',lambda r:migrations.append(r.url) if r.url.endswith('/api/project/reference-effects') else None)
                 page.goto('http://127.0.0.1:8019');page.wait_for_function('!!project && speechAvailable')
-                page.evaluate("""project.effects_version=0;project.sound_mode='manual';project.transition_sounds=true;
+                page.evaluate("""project.effects_version=0;project.sound_mode='manual';project.transition_sounds=true;project.workflow_step=3;
                     project.scenes=[{...project.scenes[0],template:'quote',title:'ПЕРВАЯ ФРАЗА',title_sound:'impact'},
                                     {...project.scenes[0],template:'quote',title:'ВТОРАЯ ФРАЗА',title_sound:'impact'}];save()""")
                 page.reload();page.wait_for_function("typeof project!=='undefined' && !!project && project.effects_version===19")
@@ -33,11 +33,14 @@ with tempfile.TemporaryDirectory(prefix='kadr18-ui-') as tmp:
                 assert page.evaluate('project.scenes[0].title')=='ПЕРВАЯ ФРАЗА'
                 assert page.evaluate('project.scenes[0].transition_out')=='cut'
                 assert page.evaluate('project.scenes[0].title_effect')=='perspective'
+                page.locator('[data-step="4"]').click()
+                page.locator('#film-settings summary').click()
                 assert page.locator('#transition-sounds').is_hidden()
                 assert page.locator('#undo-effects').is_visible()
                 assert page.evaluate("!!localStorage.getItem('kadr-before-effects-v19')")
                 count=len(migrations);page.reload();page.wait_for_function("typeof project!=='undefined' && !!project && project.effects_version===19 && speechAvailable")
                 assert len(migrations)==count,'Profile reapplied after reload'
+                page.locator('#film-settings summary').click()
                 page.locator('#undo-effects').click()
                 assert page.evaluate('project.sound_mode')=='manual'
                 assert page.evaluate('project.scenes[0].title_effect')=='inherit'
@@ -45,6 +48,8 @@ with tempfile.TemporaryDirectory(prefix='kadr18-ui-') as tmp:
                 page.locator('#reference-effects').click()
                 page.wait_for_function("project.scenes[0].title_effect==='perspective'")
                 page.select_option('#sound-mode','manual')
+                page.locator('[data-step="3"]').click()
+                page.locator('#timeline .scene-card').first.click()
                 page.select_option('#title-sound','spark')
                 page.select_option('#title-effect','typewriter')
                 page.select_option('#scene-transition','color_wash')

@@ -42,6 +42,7 @@ function save() {
   try { localStorage.setItem(storageKey, JSON.stringify(project)); $('#save-state').textContent = 'Сохранено в браузере'; }
   catch { $('#save-state').textContent = 'Скачай проект для сохранения'; }
   updatePlaybackState();
+  paintWorkflow();
 }
 function refresh() {
   save();
@@ -78,7 +79,7 @@ function paintTimeline() {
     button.append(art, meta);
     const material=media(s.asset_id);
     if(material) { const badge=document.createElement('span');badge.className='media-badge'+(s.media_reason?' auto':'');badge.textContent=(material.kind==='video'?'▶ Видео':'▧ Фото')+(s.media_reason?' · авто':'');button.append(badge); }
-    button.addEventListener('click', () => { selected = index; refresh(); seekVisiblePlayback(sceneStart(index)); });
+    button.addEventListener('click', () => { selected = index; openSceneEditor(); refresh(); seekVisiblePlayback(sceneStart(index)); });
     $('#timeline').append(button);
   });
 }
@@ -183,6 +184,7 @@ function paintTranscript() {
 function queuePreview() {
   clearTimeout(previewTimer);
   const requestId = ++previewVersion;
+  if(project.workflow_step<3)return;
   const s = structuredClone(project.scenes[selected]);
   const start = sceneStart(selected);
   const cue = project.subtitles.find(c => c.start <= start + .1 && c.end > start);
@@ -243,8 +245,8 @@ on('#file-srt', 'change', async (e) => {
   const data = await (await api('/api/subtitles', {method: 'POST', body: form})).json();
   if(project!==owner)return;
   applyTranscript(data);
+  transcriptReady();
   toast(`Монтаж создан: ${data.scenes.length} сцен, ${data.subtitles.length} субтитров.`);
-  if (project.auto_media_after_subtitles ?? true) await startAutomaticMedia(false);
 });
 on('#remove-voice', 'click', async () => { await stopSpeech(); project.voice_id = null; refresh(); });
 on('#remove-music', 'click', () => { project.music_id = null; refresh(); });
@@ -302,6 +304,7 @@ on('#demo', 'click', async () => {
   if (!confirm('Открыть демо-проект вместо текущего монтажа? Сначала скачай текущий проект, если хочешь его сохранить.')) return;
   await stopSpeech();
   project = await (await api('/api/demo')).json(); selected = 0; refresh(); toast('Открыт демо-проект. В нём нет озвучки.');
+  await enterWorkflowStep(3,{auto:false});
 });
 on('#new-project', 'click', async () => {
   if (!confirm('Создать новый проект? Текущий монтаж сохранится в браузере как резервная копия.')) return;
@@ -310,6 +313,7 @@ on('#new-project', 'click', async () => {
   await stopSpeech();
   if (project) localStorage.setItem('kadr-previous-project', JSON.stringify(project));
   project = await (await api('/api/project/new')).json(); selected = 0;
+  $('#scene-editor').open=false;$('#media-library').open=false;
   localStorage.removeItem(jobStorage); localStorage.removeItem(playbackStorage);
   localStorage.removeItem(rhythmStorage); localStorage.removeItem(effectsStorage); localStorage.removeItem(autoMediaStorage);
   autoMediaTask=null;
@@ -338,6 +342,7 @@ on('#file-project', 'change', async e => {
   if (!confirm('Заменить текущий монтаж открываемым проектом?')) return;
   await stopSpeech();
   project = valid; selected = 0;
+  if(value.workflow_step===undefined)project.workflow_step=hasMontageContent()?3:1;
   if((project.effects_version||0)<19)await applyReferenceLook();
   refresh(); toast('Проект открыт');
 });
@@ -374,6 +379,7 @@ async function pollJob(id) {
 on('#export', 'click', async () => {
   const oldId = localStorage.getItem(jobStorage);
   if (oldId) { $('#export-dialog').showModal(); await pollJob(oldId); return; }
+  if(!canRenderWorkflow())return;
   const missing = project.scenes.filter(s => !s.asset_id && !['quote','thesis'].includes(s.template)).length;
   const voice = media(project.voice_id);
   const warnings = [];
@@ -418,6 +424,7 @@ async function init() {
     }
   }
   if (!project) project = await (await api('/api/project/new')).json();
+  initWorkflow();
   let directorNeedsMedia=false, directorReplaceMedia=false;
   if(project.subtitles.length && (project.director_version||0)<12) {
     const before=JSON.stringify(project);
@@ -431,7 +438,6 @@ async function init() {
     } catch(e) {toast('Не удалось автоматически обновить монтаж: '+e.message,true);}
   }
   if((project.effects_version||0)<19)await applyReferenceLook().catch(e=>toast(e.message,true));
-  if(project.subtitles.length && project.director_version>=9 && project.scenes.some(s=>!s.asset_id && !['quote','thesis'].includes(s.template)))directorNeedsMedia=true;
   project.sound_mode ??= 'auto';
   project.sounds_per_minute ??= 4;
   refresh();
@@ -439,7 +445,11 @@ async function init() {
   if (job) { $('#export').textContent = 'Ход экспорта ↗'; await pollJob(job); }
   await resumeAutomaticMedia();
   await initSpeech();
-  if(directorNeedsMedia && !autoMediaTask && !speechRecord) await startAutomaticMedia(directorReplaceMedia).catch(e=>toast(e.message,true));
+  if(speechRecord)await enterWorkflowStep(1,{scroll:false,auto:false});
+  else if(project.workflow_step===3 && (directorNeedsMedia || project.workflow_media_pending) && !autoMediaTask && (project.auto_media_after_subtitles ?? true)) {
+    project.workflow_media_pending=false;save();
+    await startAutomaticMedia(directorReplaceMedia).catch(e=>toast(e.message,true));
+  }
   await restorePlayback();
 }
 init().catch(e => {
@@ -471,16 +481,17 @@ on('#sound-mode', 'change', e => { project.sound_mode = e.target.value; refresh(
 on('#sounds-per-minute', 'change', e => { project.sounds_per_minute = Math.max(0,Math.min(12,Number(e.target.value)||0)); refresh(); });
 on('#title-exit', 'change', e => { project.scenes[selected].title_exit = e.target.checked; save(); });
 on('#undo-rhythm','click',()=>{
-  if(autoMediaTask) {toast('Дождись завершения подбора или останови его.',true);return;}
+  if(autoMediaTask || speechRecord) {toast('Дождись распознавания и подбора или останови их.',true);return;}
   const saved=localStorage.getItem(rhythmStorage);
   if(!saved)return;
-  project=JSON.parse(saved);project.director_version=12;selected=0;localStorage.removeItem(rhythmStorage);refresh();
+  const step=project.workflow_step;
+  project=JSON.parse(saved);project.workflow_step=step;project.workflow_media_pending=false;project.director_version=12;selected=0;localStorage.removeItem(rhythmStorage);refresh();
   toast('Предыдущий монтаж восстановлен.');
 });
 on('#show-subtitles','change',e=>{project.show_subtitles=e.target.checked;changed();});
 on('#photo-motion','change',e=>{project.photo_motion=e.target.value;changed();});
 on('#reference-style', 'click', async () => {
-  if(autoMediaTask) {toast('Дождись завершения подбора или останови его перед изменением ритма.',true);return;}
+  if(autoMediaTask || speechRecord) {toast('Дождись распознавания и подбора или останови их перед изменением ритма.',true);return;}
   const owner=project, snapshot=JSON.stringify(project);
   $('#reference-style').disabled=true;
   try {
@@ -627,6 +638,7 @@ function paintAutoControls() {
   $('#cancel-arrangement').classList.toggle('hidden',!autoMediaTask);
   if(autoMediaTask)$('#export').disabled=true;
   updatePlaybackState();
+  paintWorkflow();
 }
 function rememberAutomaticMedia(record) {
   try {localStorage.setItem(autoMediaStorage,JSON.stringify(record));}
@@ -645,7 +657,7 @@ function renderArrangementReport(state,record) {
     badge.textContent=record.skipped?.includes(row.scene_index)?'Изменена вручную':assigned?(assigned.asset.kind==='video'?'Видео':'Фото'):row.status==='text'?'Текст':row.status==='missing'?'Нужен кадр':'Сохранено';
     if(assigned) {const q=document.createElement('small');q.textContent=assigned.query;copy.append(q);}
     button.append(index,copy,badge);
-    button.addEventListener('click',()=>{if(project.scenes[row.scene_index]){selected=row.scene_index;refresh();$('#scene-preview').scrollIntoView({behavior:'smooth',block:'center'});}});
+    button.addEventListener('click',()=>{if(project.scenes[row.scene_index]){selected=row.scene_index;openSceneEditor();refresh();$('#scene-preview').scrollIntoView({behavior:'smooth',block:'center'});}});
     $('#arrangement-results').append(button);
   }
   $('#arrangement-errors').textContent=(state.errors||[]).join('\n');
@@ -716,6 +728,7 @@ async function startAutomaticMedia(replace, sceneIndices=null, excludedAssetIds=
   if(speechRecord)throw new Error('Дождись распознавания речи или останови его.');
   if(!project.subtitles.length && !project.scenes.some(s=>s.title || s.caption)) {$('#arrangement-status').textContent='Сначала добавь озвучку и распознай речь или загрузи SRT/VTT.';return;}
   if(autoMediaTask)throw new Error('Подбор уже идёт.');
+  project.workflow_media_pending=false;save();
   const old=localStorage.getItem(autoMediaStorage);
   if(old) {await resumeAutomaticMedia();return;}
   if(!project.scenes.some((s,i)=>(sceneIndices===null || sceneIndices.includes(i)) && (!['quote','thesis'].includes(s.template) || s.automatic_text) && (replace || !s.asset_id))) {
@@ -750,6 +763,7 @@ on('#auto-after-subtitles','change',e=>{project.auto_media_after_subtitles=e.tar
 on('#semantic-enabled','change',e=>{project.semantic_media=e.target.checked;save();});
 
 on('#replace-frame','click',()=>{
+  $('#media-library').open=true;
   $('#manual-photos').open=true;
   $('#manual-videos').open=true;
   $('#upload-visual').scrollIntoView({behavior:'smooth',block:'center'});
@@ -779,7 +793,7 @@ let playback={record:null,ready:false,busy:false,status:'',seek:0,autoplay:false
 function playbackSignature() {
   if(!project)return '';
   const copy=structuredClone(project);
-  for(const key of ['name','version','resolution','auto_media_mode','auto_media_after_subtitles'])delete copy[key];
+  for(const key of ['name','version','resolution','auto_media_mode','auto_media_after_subtitles','workflow_step','workflow_media_pending'])delete copy[key];
   copy.scenes.forEach(s=>delete s.media_reason);
   function ordered(value) {
     if(Array.isArray(value))return value.map(ordered);
@@ -809,6 +823,7 @@ function updatePlaybackState() {
   $('#watch-montage').textContent=playback.busy?'Готовим просмотр…':stale?'↻ Обновить просмотр':current && !video.paused?'⏸ Пауза':current && video.currentTime>0 && !video.ended?'▶ Продолжить':'▶ Смотреть монтаж';
   $('#watch-scene').textContent='С выбранной сцены';
   if(autoMediaTask && !playback.busy)$('#playback-status').textContent='Дождись окончания подбора материалов, затем запусти просмотр.';
+  else if(!playback.busy && $('#playback-status').textContent.startsWith('Дождись окончания подбора'))$('#playback-status').textContent='Кадры готовы. Нажми «Смотреть монтаж», чтобы проверить фильм со звуком.';
 }
 function markPlayingScene() {
   if(!playbackCurrent())return;
@@ -877,6 +892,7 @@ async function pollPlayback(record) {
   }
 }
 async function watchMontage(time=null) {
+  if(!canRenderWorkflow())return;
   if(autoMediaTask)throw new Error('Дождись завершения подбора материалов.');
   if(playback.busy)return;
   const video=$('#montage-player');
@@ -903,8 +919,8 @@ async function restorePlayback() {
 }
 on('#watch-montage','click',()=>watchMontage());
 on('#watch-scene','click',()=>watchMontage(sceneStart(selected)));
-on('#edit-frame','click',()=>{showEditingFrame();refresh();});
-on('#edit-playing-scene','click',()=>{const index=markPlayingScene();if(Number.isInteger(index))selected=index;showEditingFrame();refresh();$('#inspector-title').scrollIntoView({behavior:'smooth',block:'start'});});
+on('#edit-frame','click',()=>{showEditingFrame();openSceneEditor();refresh();});
+on('#edit-playing-scene','click',()=>{const index=markPlayingScene();if(Number.isInteger(index))selected=index;showEditingFrame();openSceneEditor();refresh();$('#inspector-title').scrollIntoView({behavior:'smooth',block:'start'});});
 $('#montage-player').addEventListener('timeupdate',markPlayingScene);
 $('#montage-player').addEventListener('play',()=>{$('#voice-info audio').pause();updatePlaybackState();});
 $('#montage-player').addEventListener('pause',updatePlaybackState);
@@ -934,5 +950,6 @@ on('#reference-effects','click',async()=>{
 on('#undo-effects','click',()=>{
   if(autoMediaTask || speechRecord)throw new Error('Сначала останови текущую задачу.');
   const saved=localStorage.getItem(effectsStorage);if(!saved)return;
-  project=JSON.parse(saved);project.effects_version=19;selected=0;localStorage.removeItem(effectsStorage);refresh();
+  const step=project.workflow_step;
+  project=JSON.parse(saved);project.workflow_step=step;project.workflow_media_pending=false;project.effects_version=19;selected=0;localStorage.removeItem(effectsStorage);refresh();
 });

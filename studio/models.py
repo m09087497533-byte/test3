@@ -51,7 +51,7 @@ class Scene(BaseModel):
 
 
     title_effect: Literal['inherit', 'static', 'fade', 'rise', 'slide', 'scroll', 'perspective', 'reveal', 'stamp', 'typewriter', 'marquee'] = 'inherit'
-    title_delay: float = Field(default=0, ge=0, le=29)
+    title_delay: float = Field(default=0, ge=0, le=30)
     title_duration: float = Field(default=.3, ge=.033333, le=3)
     title_decoration: Literal['none', 'ring', 'underline'] = 'none'
     title_exit: bool = False
@@ -81,6 +81,8 @@ class Subtitle(BaseModel):
 
 class Project(BaseModel):
     version: Literal[1] = 1
+    workflow_step: Literal[1,2,3,4] = 1
+    workflow_media_pending: bool = False
     name: str = Field(default='Новая история', min_length=1, max_length=100)
     library_since: float = Field(default=0, ge=0)
     scenes: list[Scene] = Field(min_length=1, max_length=MAX_SCENES)

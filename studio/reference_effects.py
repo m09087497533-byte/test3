@@ -1,5 +1,6 @@
 """Shot decisions derived from the comparison, without moving voice or cue clocks."""
-from .models import frame_count,TextEvent
+from .models import frame_count
+from .event_timing import scene_events
 from .narration import has_stem
 
 VERSION=19
@@ -9,20 +10,15 @@ def apply_reference_effects(project):
     result=project.model_copy(deep=True)
     if project.effects_version<19 and project.director_version>=9 and project.subtitles:
         from .narration import emphasis_events
-        events=emphasis_events(project.subtitles);cursor=0.
+        events=emphasis_events(project.subtitles);cursor=0
         for scene in result.scenes:
-            end=cursor+frame_count(scene)/30
+            end=cursor+frame_count(scene)
             if scene.text_events or (not scene.title.strip() and not scene.caption.strip()):
                 had_events=bool(scene.text_events)
                 scene.text_events=[]
                 if had_events:
                     scene.title='';scene.caption='';scene.title_layout='caption';scene.title_delay=0;scene.title_end=None
-                for event in events:
-                    if event['start']>=end or event['end']<=cursor:continue
-                    local={k:v for k,v in event.items() if k!='priority'}
-                    local.update(start=max(0,event['start']-cursor),end=min(scene.duration,event['end']-cursor),
-                                 elapsed=max(0,cursor-event['start']),span=event['end']-event['start'])
-                    scene.text_events.append(TextEvent.model_validate(local))
+                scene.text_events=scene_events(events,cursor,end,scene.duration)
                 if scene.text_events:
                     first=scene.text_events[0]
                     scene.title=first.text;scene.title_layout=first.layout;scene.title_effect=first.effect

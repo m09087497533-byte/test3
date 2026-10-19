@@ -4,35 +4,66 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Кадр — видеомастерская</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/style.css?v=19">
+  <link rel="stylesheet" href="/static/style.css?v=20">
+  <link rel="stylesheet" href="/static/workflow.css?v=20">
 </head>
 <body>
 <noscript><p style="padding:24px;background:#f4dfb0;color:#252b25">Для работы мастерской включи JavaScript и запусти приложение командой python3 run.py. Просмотр HTML-файла внутри чата не запускает сервер монтажа.</p></noscript>
 <header class="topbar">
   <a class="brand" href="/" aria-label="Кадр — главная"><span class="brand-mark">к</span>кадр<span class="brand-dot">.</span></a>
-  <span class="edition">ВИДЕОМАСТЕРСКАЯ <span> / 19</span></span>
-  <div class="top-actions"><span id="save-state">Сохранено в браузере</span><button id="new-project" class="secondary">＋ Новый проект</button><button id="save-project" class="quiet">↓ Проект</button><button id="import-project" class="quiet">Открыть</button><button id="export" class="primary">Экспорт MP4 <span>↗</span></button></div>
-</header>
-<main class="workspace">
-  <aside class="library">
-    <div class="panel-heading"><span class="eyebrow">01 / ИСХОДНИКИ</span><span class="live-dot"></span></div>
-    <h2>Начинается<br>с твоего голоса.</h2>
-    <p class="muted intro">Добавь озвучку.<br>Распознаем речь и соберём историю.</p>
+  <span class="edition">ВИДЕОМАСТЕРСКАЯ <span> / 20</span></span>
+  <div class="top-actions"><span id="save-state">Сохранено в браузере</span><button id="new-project" class="secondary">＋ Новый проект</button><button id="save-project" class="quiet">↓ Проект</button><button id="import-project" class="quiet">Открыть</button></div>
+</header><main class="creation-workspace">
+  <div class="project-heading"><div><span class="eyebrow">ТВОЯ СЛЕДУЮЩАЯ ИСТОРИЯ</span><input id="project-name" aria-label="Название проекта" maxlength="100"></div><span class="format-pill">16:9 <span>•</span> 30 FPS</span></div>
+  <nav class="workflow-nav" aria-label="Шаги создания фильма">
+    <button data-step="1" aria-controls="step-1"><span class="step-number">1</span><span><strong>Озвучка</strong><small>Загрузи свой рассказ</small></span><span class="step-check" aria-hidden="true"></span></button>
+    <button data-step="2" aria-controls="step-2"><span class="step-number">2</span><span><strong>Текст</strong><small>Проверь распознавание</small></span><span class="step-check" aria-hidden="true"></span></button>
+    <button data-step="3" aria-controls="step-3"><span class="step-number">3</span><span><strong>Монтаж</strong><small>Кадры, движение и акценты</small></span><span class="step-check" aria-hidden="true"></span></button>
+    <button data-step="4" aria-controls="step-4"><span class="step-number">4</span><span><strong>Готовый фильм</strong><small>Посмотри и скачай MP4</small></span><span class="step-check" aria-hidden="true"></span></button>
+  </nav>
+  <div class="step-heading"><div><span id="workflow-counter" class="eyebrow">ШАГ 1 ИЗ 4</span><h1 id="workflow-title" tabindex="-1">Расскажи свою историю.</h1><p id="workflow-description">Один аудиофайл — начало твоего фильма.</p></div><span class="local-badge"><i class="live-dot"></i> На твоём компьютере</span></div>
+  <section id="step-1" class="workflow-panel" aria-label="Шаг 1. Озвучка">
+    <div class="step-grid">
+      <div class="creation-card voice-card"><span class="eyebrow">ТВОЙ РАССКАЗ</span>
+    <h2>Начни с озвучки.</h2>
+    <p class="muted intro">Загрузи запись — Кадр распознает речь и подготовит монтаж.</p>
     <button class="upload-main" id="upload-voice"><span class="upload-icon">≋</span><span><strong>Загрузить озвучку</strong><small>MP3, WAV, M4A · до 256 МБ</small></span><span>+</span></button>
     <div id="voice-info" class="audio-info hidden"><span></span><button id="remove-voice" title="Убрать озвучку">×</button><audio controls preload="metadata"></audio></div>
-    <details class="source-panel" open><summary>Распознавание речи · на компьютере</summary>
+    <div class="speech-box"><h3>Распознавание речи</h3><details class="source-panel speech-options"><summary>Язык и точность</summary>
       <label class="field-label">Язык<select id="speech-language"><option value="ru">Русский</option><option value="auto">Определить автоматически</option><option value="en">English</option><option value="uk">Українська</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="es">Español</option><option value="it">Italiano</option><option value="pt">Português</option></select></label>
       <label class="field-label">Точность<select id="speech-model"><option value="tiny">Быстрая · tiny</option><option value="base">Базовая · base</option><option value="small" selected>Хорошая · small</option><option value="medium">Высокая · medium, больше памяти</option></select></label>
-      <label><input type="checkbox" id="speech-auto" checked> Распознавать после загрузки озвучки</label>
+      </details><label class="check-label"><input type="checkbox" id="speech-auto" checked> Распознавать после загрузки озвучки</label>
       <button id="speech-start" class="secondary">Распознать озвучку</button>
       <button id="speech-cancel" class="text-button hidden">Остановить</button>
       <progress id="speech-progress" max="100" value="0" class="hidden"></progress>
       <p id="speech-status" class="mini-note" role="status">Без ключей. Первый запуск скачивает модель; затем можно без сети. Аудио остаётся на компьютере.</p>
-    </details>
-    <button class="upload-main light" id="upload-srt"><span class="upload-icon">Tₜ</span><span><strong>Добавить субтитры</strong><small>SRT / VTT · автоматическая разбивка</small></span><span>+</span></button>
-    <div id="subtitle-info" class="mini-note">Таймкоды остаются такими, как в файле.</div>
-    <div class="section-divider"></div>
-    <div class="row"><h3>Визуальные материалы</h3><button class="icon-button" id="upload-visual" title="Добавить изображения или видео">＋</button></div>
+    </div></div>
+      <aside class="step-guide creation-card"><span class="eyebrow">ДАЛЬШЕ ВСЁ ПО ПОРЯДКУ</span><h2>От голоса<br>к готовому ролику.</h2><ol class="journey"><li><span>01</span><div><strong>Распознаем речь</strong><p>Бесплатно, на твоём компьютере. Первый запуск скачает модель.</p></div></li><li><span>02</span><div><strong>Ты проверишь фразы</strong><p>Имена и термины можно исправить, сохранив таймкоды.</p></div></li><li><span>03</span><div><strong>Соберём историю</strong><p>Подберём кадры и назначим наезды, текстовые акценты и переходы.</p></div></li></ol>
+      <details class="source-panel"><summary>Уже есть субтитры SRT / VTT?</summary><button class="upload-main light" id="upload-srt"><span class="upload-icon">Tₜ</span><span><strong>Добавить субтитры</strong><small>SRT / VTT · автоматическая разбивка</small></span><span>+</span></button>
+    <div id="subtitle-info" class="mini-note">Таймкоды остаются такими, как в файле.</div></details></aside>
+    </div>
+  </section>
+  <section id="step-2" class="workflow-panel" aria-label="Шаг 2. Текст" hidden>
+    <div class="step-grid text-grid"><div class="creation-card"><div class="card-heading"><h2>Текст твоего рассказа</h2><span id="workflow-text-count" class="status-pill">0 фраз</span></div><p class="mini-note">Проверь имена, даты и названия. По этим фразам программа выбирает кадры и моменты появления текста.</p><p id="transcript-empty" class="empty-step">Здесь появится текст после распознавания. Добавь озвучку или SRT / VTT на первом шаге.</p><details id="transcript" open><summary>Текст и таймкоды <span id="cue-count">0 фраз</span></summary><button id="edit-transcript" class="secondary">Исправить фразы</button><button id="download-subtitles" class="text-button">Скачать SRT</button><div id="cue-list"></div></details></div>
+    <aside class="step-guide creation-card"><span class="eyebrow">ПРОВЕРКА ПЕРЕД МОНТАЖОМ</span><h2>Нужны только<br>небольшие правки.</h2><p>Если текст верный, сразу переходи к монтажу. Акценты появятся на словах из твоего рассказа.</p><div class="guide-note"><strong>Таймкоды сохранятся</strong><p>Редактор меняет фразы, не передвигая озвучку и субтитры.</p></div><button class="text-button" data-go-step="1">← Заменить озвучку или SRT</button></aside></div>
+  </section>
+  <section id="step-3" class="workflow-panel" aria-label="Шаг 3. Монтаж" hidden>
+    <div class="reference-banner"><span class="reference-symbol" aria-hidden="true">✦</span><div><strong>Приёмы из референса — автоматически</strong><p>Плавные наезды и смена крупности, документ в рамке, анимированные даты и текст. Звуки — только при появлении надписей.</p></div><span class="status-pill">Включены</span></div>
+    <section class="auto-director" aria-labelledby="auto-heading">
+      <div class="auto-heading-row"><div><span class="eyebrow">АВТОМОНТАЖ ПО ТЕКСТУ</span><h2 id="auto-heading">Программа сама расставит кадры.</h2><p>Подберёт фото и футажи к фразам озвучки, загрузит и назначит сценам.</p></div><span class="auto-symbol" aria-hidden="true">✦</span></div>
+      <div class="auto-controls"><label class="field-label">Материалы<select id="auto-media-mode"><option value="mixed">Фото + видео · программа выбирает</option><option value="videos">Только видео</option><option value="photos">Только фото</option></select></label><button id="arrange-media" class="primary">✦ Подобрать и расставить</button><button id="cancel-arrangement" class="secondary hidden">Остановить</button></div>
+      <details class="auto-settings"><summary>Настройки подбора</summary><label class="check-label"><input id="semantic-enabled" type="checkbox" checked> Смысловая оценка описаний · локальная модель</label><button id="semantic-prepare" class="text-button">Подготовить смысловую модель</button><p id="semantic-status" class="mini-note" role="status">Модель скачивается при первом подборе. Содержимое кадров не распознаётся.</p>
+      <div class="auto-options"><label class="check-label"><input id="auto-after-subtitles" type="checkbox" checked><span>Подбирать автоматически на этом шаге</span></label><label class="check-label"><input id="replace-media" type="checkbox"><span>Заменять назначенные материалы</span></label></div>
+      </details><p id="auto-source-status" class="mini-note">Используем библиотеку, Wikimedia и подключённые Pexels / Pixabay.</p>
+      <progress id="arrangement-progress" class="hidden" value="0" max="100" aria-label="Прогресс подбора"></progress>
+      <p id="arrangement-status" class="arrangement-status" role="status">При переходе на этот шаг подбор запустится автоматически. Можно добавить свои кадры.</p>
+      <details id="arrangement-report" class="hidden"><summary>Результат по сценам</summary><div id="arrangement-results"></div><div id="arrangement-errors" class="mini-note"></div></details>
+    </section>
+    <div class="material-toolbar"><p id="workflow-material-status" role="status"></p><button id="connect-sources" class="text-button">Подключить Pexels / Pixabay</button></div>
+    <div class="timeline-heading"><div><span class="eyebrow">ПЛАН ФИЛЬМА</span><h2>Сцены твоей истории <span id="total-time"></span></h2></div><button id="add-scene" class="secondary">＋ Сцена</button></div>
+    <div id="timeline" class="timeline" aria-label="Сцены проекта"></div>
+    <div class="timeline-footer"><span id="scene-count"></span><span>Нажми на сцену, чтобы заменить кадр или текст</span></div>
+    <details id="media-library" class="creation-card advanced-card"><summary>Свои материалы и ручной поиск<span>Необязательно</span></summary><div class="media-library-content"><div class="row"><h3>Визуальные материалы</h3><button class="icon-button" id="upload-visual" title="Добавить изображения или видео">＋</button></div>
     <p class="muted small">Выбери сцену, затем нажми на материал.</p>
     <details id="manual-photos" class="source-panel"><summary>Фото · Wikimedia <span>Ручной поиск</span></summary>
     <div class="internet-search">
@@ -66,50 +97,9 @@
       <div id="video-results" class="search-results"></div>
     </div></details>
     <div id="asset-grid" class="asset-grid"></div>
-    <div id="asset-empty" class="asset-empty"><span>▧</span><p>Твои кадры — здесь</p><small>Изображения и видео.<br>Пока используем демонстрационный фон.</small><button id="upload-visual-empty" class="text-button">Добавить материалы ↗</button></div>
-    <div class="section-divider"></div>
-    <div class="row"><h3>Музыкальная подложка</h3><button id="upload-music" class="icon-button" title="Загрузить музыку">＋</button></div>
-    <div id="music-info" class="mini-note">Необязательно. Озвучка звучит поверх музыки.</div>
-    <label class="check-label"><input id="auto-music" type="checkbox"><span>Добавлять тихую музыку автоматически<small>Оригинальная фоновая мелодия; своя музыка заменяет её.</small></span></label>
-    <label class="volume-label">Громкость музыки <output id="volume-value">15%</output><input id="music-volume" type="range" min="0" max="100" value="15"></label>
-    <button id="remove-music" class="text-button hidden">Убрать музыку</button>
-    <div class="library-foot"><span>●</span> Локальная мастерская<br><small>Файлы обрабатываются на этом сервере.</small></div>
-  </aside>
-
-  <section class="editor">
-    <div class="project-heading"><div><span class="eyebrow">ТВОЯ СЛЕДУЮЩАЯ ИСТОРИЯ</span><input id="project-name" aria-label="Название проекта" maxlength="100"></div><span class="format-pill">16:9 <span>•</span> 30 FPS</span></div>
-    <section class="auto-director" aria-labelledby="auto-heading">
-      <div class="auto-heading-row"><div><span class="eyebrow">АВТОМОНТАЖ ПО ТЕКСТУ</span><h2 id="auto-heading">Программа сама расставит кадры.</h2><p>Подберёт фото и футажи к фразам озвучки, загрузит и назначит сценам.</p></div><span class="auto-symbol" aria-hidden="true">✦</span></div>
-      <div class="auto-controls"><label class="field-label">Материалы<select id="auto-media-mode"><option value="mixed">Фото + видео · программа выбирает</option><option value="videos">Только видео</option><option value="photos">Только фото</option></select></label><button id="arrange-media" class="primary">✦ Подобрать и расставить</button><button id="cancel-arrangement" class="secondary hidden">Остановить</button></div>
-      <label class="check-label"><input id="semantic-enabled" type="checkbox" checked> Смысловая оценка описаний · локальная модель</label><button id="semantic-prepare" class="text-button">Подготовить смысловую модель</button><p id="semantic-status" class="mini-note" role="status">Модель скачивается при первом подборе. Содержимое кадров не распознаётся.</p>
-      <div class="auto-options"><label class="check-label"><input id="auto-after-subtitles" type="checkbox" checked><span>Запускать после загрузки субтитров</span></label><label class="check-label"><input id="replace-media" type="checkbox"><span>Заменять назначенные материалы</span></label></div>
-      <p id="auto-source-status" class="mini-note">Используем библиотеку, Wikimedia и подключённые Pexels / Pixabay.</p>
-      <progress id="arrangement-progress" class="hidden" value="0" max="100" aria-label="Прогресс подбора"></progress>
-      <p id="arrangement-status" class="arrangement-status" role="status">Загрузи озвучку и субтитры или запусти подбор для текущих сцен.</p>
-      <details id="arrangement-report" class="hidden"><summary>Результат по сценам</summary><div id="arrangement-results"></div><div id="arrangement-errors" class="mini-note"></div></details>
-    </section>
-    <div class="playback-panel">
-      <div class="playback-actions"><button id="watch-montage" class="primary">▶ Смотреть монтаж</button><button id="watch-scene" class="secondary">С выбранной сцены</button><button id="edit-frame" class="quiet hidden">К редактированию</button></div>
-      <progress id="playback-progress" class="hidden" value="0" max="100" aria-label="Подготовка просмотра"></progress>
-      <p id="playback-status" class="mini-note" role="status">Смотри монтаж с озвучкой, субтитрами и переходами. Для первого запуска подготовим лёгкое видео.</p>
-      <details id="playback-error-details" class="hidden"><summary>Причина ошибки</summary><pre id="playback-error" class="error-report"></pre><div class="playback-actions"><button id="copy-playback-error" class="secondary">Скопировать отчёт</button><a id="download-playback-error" class="text-button" download="kadr-playback-error.txt">Скачать отчёт</a></div></details>
-      <div id="playback-position" class="playback-position hidden"><span id="playing-scene"></span><button id="edit-playing-scene" class="text-button">Изменить этот кадр</button></div>
-    </div>
-    <div class="stage-shell">
-      <div class="stage-top"><span><i class="live-dot"></i> <span id="stage-label">КОМПОЗИЦИЯ СЦЕНЫ</span></span><span id="scene-counter">01 / 04</span></div>
-      <div class="stage"><video id="montage-player" class="hidden" controls playsinline preload="metadata" aria-label="Просмотр монтажа"></video><img id="scene-preview" alt="Предпросмотр выбранной сцены"><div id="preview-subtitle"></div><div id="preview-loading" class="hidden">Обновляем кадр…</div></div>
-      <div class="stage-bottom"><span id="scene-source">Демонстрационный фон</span><span id="scene-time">00:00 — 00:04</span></div>
-    </div>
-    <div class="under-stage"><p>Замени неподходящий материал и нажми «Обновить просмотр».</p><button id="demo" class="text-button">Демо-проект ↺</button></div>
-    <div class="timeline-heading"><div><span class="eyebrow">02 / МОНТАЖ</span><h2>Ритм твоей истории <span id="total-time"></span></h2></div><button id="add-scene" class="secondary">＋ Сцена</button></div>
-    <div id="timeline" class="timeline" aria-label="Сцены проекта"></div>
-    <div class="timeline-footer"><span id="scene-count"></span><span>Выбери сцену, чтобы настроить её →</span></div>
-    <details id="transcript"><summary>Текст и таймкоды <span id="cue-count">0 фраз</span></summary><button id="edit-transcript" class="secondary">Исправить фразы</button><button id="download-subtitles" class="text-button">Скачать SRT</button><div id="cue-list"></div></details>
-    <div class="workflow-note"><span class="note-number">i</span><p><strong>Сначала голос. Затем образ.</strong> Загрузи озвучку — программа распознает речь, построит сцены и подберёт материалы по тексту. Свои SRT / VTT тоже можно загрузить. Проверь монтаж и экспортируй свою историю.</p></div>
-  </section>
-
-  <aside class="inspector">
-    <span class="eyebrow">03 / ОФОРМЛЕНИЕ</span><div class="row"><h2 id="inspector-title">Сцена 01</h2><span class="tiny-tag">РЕДАКТОР</span></div>
+    <div id="asset-empty" class="asset-empty"><span>▧</span><p>Твои кадры — здесь</p><small>Изображения и видео.<br>Загрузи свои кадры или запусти автоподбор.</small><button id="upload-visual-empty" class="text-button">Добавить материалы ↗</button></div></div></details>
+    <details id="scene-editor" class="creation-card advanced-card"><summary>Изменить отдельную сцену<span>Кадр, текст и эффекты</span></summary><div class="scene-edit-grid"><div id="edit-stage"></div><aside class="inspector">
+    <span class="eyebrow">РЕДАКТОР СЦЕНЫ</span><div class="row"><h2 id="inspector-title">Сцена 01</h2><span class="tiny-tag">РЕДАКТОР</span></div>
     <p id="scene-match" class="match-note hidden"></p>
     <p id="scene-edit-note" class="mini-note"></p><p id="scene-accents" class="mini-note"></p>
     <label class="field-label">Визуальный приём</label>
@@ -125,7 +115,7 @@
     <div class="scene-quick-actions"><button id="replace-frame" class="secondary">Заменить кадр</button><button id="another-variant" class="secondary">Другой вариант</button><button id="edit-screen-text" class="secondary">Изменить текст на экране</button><button id="regenerate-scene" class="primary">Перегенерировать сцену</button></div>
     <div class="two-fields"><label class="field-label">Длительность, с<input id="scene-duration" type="number" min="1" max="30" step="0.1"></label><label class="field-label">Начало видео, с<input id="scene-offset" type="number" min="0" step="0.1"></label></div>
     <label class="field-label">Появление текста<select id="title-effect"><option value="inherit">Как в настройках фильма</option><option value="static">Сразу</option><option value="fade">Растворение</option><option value="rise">Подъём снизу</option><option value="slide">Въезд слева</option><option value="scroll">Прокрутка справа налево</option><option value="perspective">Подъём с перспективой</option><option value="reveal">Раскрытие по строке</option><option value="stamp">Мягкий штамп</option><option value="typewriter">Появление по буквам</option><option value="marquee">Бегущая строка на сетке</option></select></label>
-    <div class="two-fields"><label class="field-label">Через, с<input id="title-delay" type="number" min="0" max="29" step="0.033333"></label><label class="field-label">Время появления, с<input id="title-duration" type="number" min="0.033333" max="3" step="0.033333"></label></div>
+    <div class="two-fields"><label class="field-label">Через, с<input id="title-delay" type="number" min="0" max="30" step="0.033333"></label><label class="field-label">Время появления, с<input id="title-duration" type="number" min="0.033333" max="3" step="0.033333"></label></div>
     <label class="field-label">Выделение текста<select id="title-decoration"><option value="none">Без выделения</option><option value="ring">Рисованная обводка</option><option value="underline">Подчёркивание</option></select></label>
     <label class="check-label"><input id="title-exit" type="checkbox"><span>Уводить текст влево в конце сцены</span></label>
     <label class="field-label" id="manual-title-sound">Звук появления текста<select id="title-sound"><option value="none">Без звука</option><option value="click">Короткий щелчок</option><option value="impact">Низкий удар</option><option value="swish">Воздушный взмах</option><option value="paper">Шелест бумаги</option><option value="sweep">Широкий пролёт</option><option value="chime">Мягкий звон</option><option value="stamp">Штамп</option><option value="spark">Искристый блик</option></select></label>
@@ -136,8 +126,28 @@
     <button id="clear-asset" class="text-button hidden">Убрать материал из сцены</button>
     <div class="section-divider"></div>
     <div class="row scene-actions"><button id="move-left" class="secondary" title="Сдвинуть сцену влево">←</button><button id="move-right" class="secondary" title="Сдвинуть сцену вправо">→</button><button id="duplicate" class="secondary" title="Дублировать сцену">Копия</button><button id="delete-scene" class="quiet danger" title="Удалить сцену">Удалить</button></div>
-    <div class="section-divider"></div>
-    <h3>Параметры фильма</h3>
+    <div class="section-divider"></div></aside></div></details>
+    <button id="demo" class="text-button demo-link">Открыть демо-проект ↺</button>
+  </section>
+  <section id="step-4" class="workflow-panel" aria-label="Шаг 4. Просмотр и экспорт" hidden>
+    <div id="workflow-missing" class="missing-banner" hidden><strong>Для некоторых сцен ещё нужны кадры.</strong><p id="workflow-missing-detail"></p><button class="secondary" data-go-step="3">← Вернуться к подбору</button></div>
+    <div class="review-grid"><div class="review-main"><div class="playback-panel">
+      <div class="playback-actions"><button id="watch-montage" class="primary">▶ Смотреть монтаж</button><button id="watch-scene" class="secondary">С выбранной сцены</button><button id="edit-frame" class="quiet hidden">К редактированию</button></div>
+      <progress id="playback-progress" class="hidden" value="0" max="100" aria-label="Подготовка просмотра"></progress>
+      <p id="playback-status" class="mini-note" role="status">Смотри монтаж с озвучкой, субтитрами и переходами. Для первого запуска подготовим лёгкое видео.</p>
+      <details id="playback-error-details" class="hidden"><summary>Причина ошибки</summary><pre id="playback-error" class="error-report"></pre><div class="playback-actions"><button id="copy-playback-error" class="secondary">Скопировать отчёт</button><a id="download-playback-error" class="text-button" download="kadr-playback-error.txt">Скачать отчёт</a></div></details>
+      <div id="playback-position" class="playback-position hidden"><span id="playing-scene"></span><button id="edit-playing-scene" class="text-button">Изменить этот кадр</button></div>
+    </div><div id="review-stage"><div class="stage-shell">
+      <div class="stage-top"><span><i class="live-dot"></i> <span id="stage-label">КОМПОЗИЦИЯ СЦЕНЫ</span></span><span id="scene-counter">01 / 04</span></div>
+      <div class="stage"><video id="montage-player" class="hidden" controls playsinline preload="metadata" aria-label="Просмотр монтажа"></video><img id="scene-preview" alt="Предпросмотр выбранной сцены"><div id="preview-subtitle"></div><div id="preview-loading" class="hidden">Обновляем кадр…</div></div>
+      <div class="stage-bottom"><span id="scene-source">Демонстрационный фон</span><span id="scene-time">00:00 — 00:04</span></div>
+    </div></div><div class="review-under"><p>Проверь текст, кадры и звук перед экспортом.</p><button class="text-button" data-go-step="3">← Изменить монтаж</button></div></div>
+    <aside class="creation-card export-card"><span class="eyebrow">ТВОЙ ГОТОВЫЙ ФИЛЬМ</span><h2>Последний штрих.</h2><p id="workflow-review-summary" class="mini-note"></p><label class="field-label">Качество экспорта<select id="resolution"><option value="720p">HD · 1280 × 720</option><option value="1080p">Full HD · 1920 × 1080</option></select></label><label class="check-label"><input type="checkbox" id="show-subtitles" checked><span>Показывать субтитры внизу<small>Можно скрыть; текст останется для подбора материалов.</small></span></label><div class="section-divider"></div><div class="row"><h3>Музыкальная подложка</h3><button id="upload-music" class="icon-button" title="Загрузить музыку">＋</button></div>
+    <div id="music-info" class="mini-note">Необязательно. Озвучка звучит поверх музыки.</div>
+    <label class="check-label"><input id="auto-music" type="checkbox"><span>Добавлять тихую музыку автоматически<small>Оригинальная фоновая мелодия; своя музыка заменяет её.</small></span></label>
+    <label class="volume-label">Громкость музыки <output id="volume-value">15%</output><input id="music-volume" type="range" min="0" max="100" value="15"></label>
+    <button id="remove-music" class="text-button hidden">Убрать музыку</button><div class="section-divider"></div><button id="export" class="primary">Экспорт MP4 <span>↗</span></button><p class="mini-note">Готовый файл MP4 можно скачать после сборки.</p></aside></div>
+    <details id="film-settings" class="creation-card advanced-card"><summary>Дополнительные настройки фильма<span>Оформление и звук</span></summary><div class="film-settings-content"><h3>Параметры фильма</h3>
     <button id="reference-style" class="secondary">Пересобрать планы и смену кадров</button>
     <button id="reference-effects" class="secondary">Применить логику монтажа из видео</button><button id="undo-effects" class="secondary hidden">Вернуть прежнее оформление</button>
     <button id="undo-rhythm" class="secondary hidden">Вернуть монтаж до изменения ритма</button>
@@ -145,15 +155,16 @@
     <label class="field-label">Звуковые акценты<select id="sound-mode"><option value="auto">Автоматически · редко</option><option value="off">Без эффектов</option><option value="manual">Настроить вручную</option></select></label>
     <label id="auto-sound-rate" class="field-label">Ориентир звуков в минуту<input id="sounds-per-minute" type="number" min="0" max="12" step="1" value="4"></label>
     <p id="sound-plan" class="mini-note" role="status"></p>
-    <label class="check-label"><input type="checkbox" id="show-subtitles" checked><span>Показывать субтитры внизу<small>Можно скрыть; текст останется для подбора материалов.</small></span></label>
+
     <label class="field-label">Движение фотографий<select id="photo-motion"><option value="static">Без движения</option><option value="smooth">Плавное приближение / движение по сценам</option></select></label>
     <label class="field-label">Переходы<select id="transition"><option value="mixed">Разные переходы по очереди</option><option value="dissolve">Мягкое растворение</option><option value="slide">Плавный сдвиг</option><option value="flash">Световая вспышка</option><option value="blur">Через размытие</option><option value="wipe">Шторка влево</option><option value="light_leak">Тёплая засветка</option><option value="color_wash">Цветовой перелив</option><option value="zoom">Приближение со сменой кадра</option><option value="fade">Через затемнение · 0,18 с</option><option value="cut">Прямая склейка</option></select></label>
     <label class="check-label"><input type="checkbox" id="animate-titles"><span>Анимировать заголовки<small>Плавный въезд и появление</small></span></label>
     <label class="check-label hidden"><input type="checkbox" id="transition-sounds" disabled><span>Звуки переходов<small>Отключены: эффекты звучат только при появлении текста</small></span></label>
     <label class="volume-label">Громкость эффектов <output id="sfx-value">35%</output><input id="sfx-volume" type="range" min="0" max="100" value="35"></label>
-    <label class="field-label">Качество экспорта<select id="resolution"><option value="720p">HD · 1280 × 720</option><option value="1080p">Full HD · 1920 × 1080</option></select></label>
-    <p class="muted small">Звук исходных видео отключён. В фильме звучат твоя озвучка, музыкальная подложка и выбранные эффекты.</p>
-  </aside>
+
+    <p class="muted small">Звук исходных видео отключён. В фильме звучат твоя озвучка, музыкальная подложка и выбранные эффекты.</p></div></details>
+  </section>
+  <footer class="workflow-footer"><button id="workflow-back" class="secondary" hidden>← Назад</button><p id="workflow-hint" role="status">Добавь озвучку или готовые субтитры, чтобы начать.</p><button id="workflow-next" class="primary">Дальше: текст →</button></footer>
 </main>
 <div id="connection-error" class="hidden" role="alert" style="position:fixed;inset:20% 8% auto;padding:28px;background:#192436;border:2px solid #b7ee72;border-radius:12px;z-index:30;color:#eef3ff;box-shadow:0 12px 80px #0005"><h2>Мастерская не подключена к серверу</h2><p style="margin:16px 0;line-height:1.7">Предпросмотр HTML внутри чата не запускает обработку видео. Открой папку проекта и выполни <code>python3 run.py</code> — приложение откроется в браузере. Инструкции находятся в README.md.</p><p id="connection-detail" class="muted small"></p><button class="primary" onclick="location.reload()">Повторить подключение</button></div>
 <div id="toast" role="status" class="hidden"></div>
@@ -164,7 +175,8 @@
 <input id="file-visual" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" multiple hidden>
 <input id="file-project" type="file" accept=".json" hidden>
   <dialog id="transcript-dialog"><h2>Исправить фразы</h2><p>Таймкоды и озвучка сохранятся. Текстовые акценты обновятся. Назначенные кадры останутся; для их замены запустите подбор.</p><div id="transcript-fields"></div><button id="transcript-apply" class="primary">Сохранить исправления</button><button id="transcript-close" class="secondary">Отмена</button></dialog>
-  <script src="/static/speech.js?v=19" defer></script>
-  <script src="/static/app.js?v=19" defer></script>
+  <script src="/static/speech.js?v=20" defer></script>
+  <script src="/static/workflow.js?v=20" defer></script>
+  <script src="/static/app.js?v=20" defer></script>
 </body>
 </html>
