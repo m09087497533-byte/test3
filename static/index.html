@@ -4,13 +4,13 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Кадр — видеомастерская</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/style.css?v=17">
+  <link rel="stylesheet" href="/static/style.css?v=17.1">
 </head>
 <body>
 <noscript><p style="padding:24px;background:#f4dfb0;color:#252b25">Для работы мастерской включи JavaScript и запусти приложение командой python3 run.py. Просмотр HTML-файла внутри чата не запускает сервер монтажа.</p></noscript>
 <header class="topbar">
   <a class="brand" href="/" aria-label="Кадр — главная"><span class="brand-mark">к</span>кадр<span class="brand-dot">.</span></a>
-  <span class="edition">ВИДЕОМАСТЕРСКАЯ <span> / 17</span></span>
+  <span class="edition">ВИДЕОМАСТЕРСКАЯ <span> / 17.1</span></span>
   <div class="top-actions"><span id="save-state">Сохранено в браузере</span><button id="new-project" class="secondary">＋ Новый проект</button><button id="save-project" class="quiet">↓ Проект</button><button id="import-project" class="quiet">Открыть</button><button id="export" class="primary">Экспорт MP4 <span>↗</span></button></div>
 </header>
 <main class="workspace">
@@ -163,7 +163,7 @@
 <input id="file-visual" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" multiple hidden>
 <input id="file-project" type="file" accept=".json" hidden>
   <dialog id="transcript-dialog"><h2>Исправить фразы</h2><p>Таймкоды и озвучка сохранятся. Текстовые акценты обновятся. Назначенные кадры останутся; для их замены запустите подбор.</p><div id="transcript-fields"></div><button id="transcript-apply" class="primary">Сохранить исправления</button><button id="transcript-close" class="secondary">Отмена</button></dialog>
-  <script src="/static/speech.js?v=17" defer></script>
-  <script src="/static/app.js?v=17" defer></script>
+  <script src="/static/speech.js?v=17.1" defer></script>
+  <script src="/static/app.js?v=17.1" defer></script>
 </body>
 </html>

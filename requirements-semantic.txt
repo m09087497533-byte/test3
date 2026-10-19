@@ -1,0 +1,5 @@
+-r requirements.txt
+# Newer ONNX releases drop Intel/older macOS wheels; NumPy 1.x preserves ABI.
+onnxruntime==1.19.2; sys_platform == "darwin"
+numpy==1.26.4; sys_platform == "darwin"
+fastembed==0.9.0

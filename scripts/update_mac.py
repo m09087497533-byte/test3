@@ -9,13 +9,13 @@ import sys
 import uuid
 
 CODE_DIRS={'studio','static','scripts','tests','docs'}
-CODE_FILES={'AGENTS.md','run.py','README.md','requirements.txt','requirements-dev.txt','requirements-ui.txt','requirements-ai.txt','constraints.txt','Обновить Кадр.command','Запустить Кадр.command'}
+CODE_FILES={'AGENTS.md','run.py','README.md','requirements.txt','requirements-dev.txt','requirements-ui.txt','requirements-ai.txt','requirements-speech.txt','requirements-semantic.txt','constraints.txt','Обновить Кадр.command','Запустить Кадр.command'}
 
 
 def update_files(source,target):
     source=Path(source).resolve();target=Path(target).resolve()
-    if not (target/'run.py').is_file() or not (target/'.venv/bin/python').is_file():
-        raise ValueError('Выберите старую папку Кадра, где лежат run.py и установленная .venv.')
+    if not (target/'run.py').is_file() or not any((target/name/'bin/python').is_file() for name in ('.venv','.venv-py312')):
+        raise ValueError('Выберите старую папку Кадра, где лежат run.py и установленная .venv или .venv-py312.')
     if source==target:return
     for name in CODE_DIRS:
         if (target/name).is_symlink():raise ValueError('Папки программы не должны быть символическими ссылками.')
@@ -68,11 +68,11 @@ def main():
         update_files(Path(__file__).resolve().parent.parent,target)
     except (OSError,ValueError) as exc:parser.exit(1,str(exc)+'\n')
     print('Код обновлён. Материалы и API-ключи сохранены. Обновляем зависимости…',flush=True)
-    python=target/'.venv/bin/python'
-    subprocess.run([str(python),'-m','pip','install','-r','requirements.txt'],cwd=target,check=True)
-    optional = subprocess.run([str(python),'-m','pip','install','-r','requirements-ai.txt'],cwd=target)
-    if optional.returncode:
-        print('Распознавание и смысловая модель не установлены. SRT/VTT и обычный подбор работают; повторите обновление при доступном интернете.',flush=True)
+    from install_runtime import prepare_runtime
+    try:
+        python=prepare_runtime(target, refresh=True)
+    except (RuntimeError,OSError,subprocess.SubprocessError) as exc:
+        parser.exit(1,str(exc)+'\n')
     print('Запускаем Кадр. Оставьте это окно открытым.',flush=True)
     subprocess.run([str(python),'run.py'],cwd=target,check=True)
 

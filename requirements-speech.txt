@@ -1,0 +1,6 @@
+-r requirements.txt
+# Wheels verified for CPython 3.12, macOS 11+, Intel and Apple Silicon.
+ctranslate2==4.6.0; sys_platform == "darwin"
+av==14.0.1; sys_platform == "darwin"
+numpy==1.26.4; sys_platform == "darwin"
+faster-whisper==1.2.1

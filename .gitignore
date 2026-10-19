@@ -1,4 +1,5 @@
-.venv/
+.venv
+.venv-py312
 .data/
 __pycache__/
 *.py[cod]

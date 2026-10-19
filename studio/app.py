@@ -47,7 +47,7 @@ def index():
 
 @app.get('/api/health')
 def health():
-    return {'ok': bool(shutil.which('ffmpeg') and shutil.which('ffprobe')), 'version': '0.17'}
+    return {'ok': bool(shutil.which('ffmpeg') and shutil.which('ffprobe')), 'version': '0.17.1'}
 
 
 from . import transcription
