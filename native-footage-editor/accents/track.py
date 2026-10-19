@@ -6,6 +6,7 @@ from PIL import Image,ImageDraw,ImageFilter
 from .drawing import font,text_block
 from .animation import title_frame
 from .graphics import reference_frame,grid_background
+from .marquee import marquee_frame
 
 
 def counter_layer(size,text,progress):
@@ -28,10 +29,7 @@ def event_frame(event,size,elapsed,remaining):
     event=SimpleNamespace(**event) if isinstance(event,dict) else event
     w,h=size
     if event.effect=='marquee':
-        layer=Image.new('RGBA',size);face=font(max(12,round(132*w/1280)),condensed=True)
-        text=event.text.upper();width=face.getlength(text)
-        p=min(1,max(0,elapsed/max(.1,event.span)))
-        ImageDraw.Draw(layer).text((w*.94-(w*.94+width)*p,h*.49),text,font=face,anchor='lm',fill='#e0ed13')
+        layer=marquee_frame(event.text,size,elapsed,event.span)
     elif event.treatment not in ('classic','glow','color_shadow'):layer=reference_frame(event,size,elapsed)
     elif event.layout=='counter':layer=counter_layer(size,event.text,elapsed/event.duration)
     else:

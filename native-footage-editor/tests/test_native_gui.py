@@ -159,5 +159,25 @@ class NativeWindowTests(unittest.TestCase):
         self.assertGreater(min(pixel),180,'The selected appearance was not applied to the export')
         self.assertTrue(self.messages)
 
+    def test_multiline_grid_is_readable_in_real_preview(self):
+        import numpy as np
+        from PIL import ImageTk
+        from accents.appearances import APPEARANCE_KEYS
+        self.app.project.segments=[dict(start=0,end=6,text='Мы меняем планы и переносим встречи ради важного разговора.')]
+        self.app._show_accents();self.pump(.1)
+        dialog=self.app.accent_editor
+        dialog.appearance_combo.current(APPEARANCE_KEYS.index('marquee'))
+        dialog.appearance_combo.event_generate('<<ComboboxSelected>>');self.pump(.2)
+        dialog.toggle_play();dialog._paint(1.6);self.pump(.1)
+        pixels=np.array(ImageTk.getimage(dialog.preview.image))
+        mask=(pixels[:,:,0]>140)&(pixels[:,:,1]>140)&(pixels[:,:,2]<100)
+        ys,xs=np.nonzero(mask)
+        self.assertGreater(mask.sum(),500)
+        self.assertGreater(ys.max()-ys.min(),pixels.shape[0]*.25)
+        self.assertGreater(xs.min(),pixels.shape[1]*.06)
+        self.assertLess(xs.max(),pixels.shape[1]*.94)
+        self.screenshot('native-multiline-grid.png')
+        dialog.close()
+
 
 if __name__=='__main__':unittest.main()

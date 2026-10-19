@@ -93,7 +93,7 @@ class AccentEditor(tk.Toplevel):
         self.status = tk.StringVar(value='Выбор сохраняется автоматически.')
         tk.Label(options, textvariable=self.status, bg=BG, fg='#a6e3a1', justify='left',
                  wraplength=280).pack(anchor='w', pady=6)
-        tk.Label(options, text='Текст и таймкоды сохраняются.\nПоиск футажей и цикл переходов остаются прежними.',
+        tk.Label(options, text='Исходный текст, озвучка и сцены сохраняются.\nПоиск футажей и цикл переходов остаются прежними.',
                  bg=BG, fg=FG, justify='left', wraplength=280).pack(anchor='w', pady=12)
 
         preview_area = tk.Frame(bottom, bg=BG)

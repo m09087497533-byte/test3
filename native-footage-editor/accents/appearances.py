@@ -29,7 +29,7 @@ APPEARANCES = [
     ('red_ink', 'Красный акцент с обводкой', 'center', 'reveal', 'red_ink', 'ring', .85),
     ('neon', 'Неоновое свечение', 'center', 'reveal', 'glow', 'none', .85),
     ('chromatic', 'Цветная тень', 'center', 'stamp', 'color_shadow', 'none', .8),
-    ('marquee', 'Бегущая строка на сетке', 'grid', 'marquee', 'classic', 'none', .6),
+    ('marquee', 'Бегущие строки на сетке', 'grid', 'marquee', 'classic', 'none', .6),
 ]
 APPEARANCE_BY_KEY = {item[0]: item for item in APPEARANCES}
 APPEARANCE_LABELS = {item[0]: item[1] for item in APPEARANCES}

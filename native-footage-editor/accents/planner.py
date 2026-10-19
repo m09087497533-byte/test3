@@ -6,7 +6,7 @@ from .appearances import APPEARANCE_LABELS, accent_id, apply_appearance, clean_o
 
 STYLE_LABELS={'red_ink':'Красные цифры с обводкой','neon':'Светящиеся цифры',
               'chromatic':'Дата с цветной тенью','editorial':'Текст с перспективой',
-              'italic':'Курсивная фраза','marquee':'Бегущая строка на сетке',
+              'italic':'Курсивная фраза','marquee':'Бегущие строки на сетке',
               'caption':'Короткая подпись','classic':'Появление текста'}
 
 
@@ -33,4 +33,12 @@ def plan_accents(segments,duration=None,major_rate=2,fps=25,overrides=None):
         event['id']=accent_id(event,fps)
         choice=overrides.get(event['id'],{}).get('appearance','auto')
         events.append(apply_appearance(event,choice))
+    for i,event in enumerate(events):
+        if event['effect']!='marquee':continue
+        # More reading time, without moving narration, the next accent or cuts.
+        hold=min(8.,max(4.,len(event['text'].split())/2.6+.8))
+        limit=min(duration,events[i+1]['start']-.12 if i+1<len(events) else duration)
+        end=min(limit,max(event['end'],event['start']+hold))
+        event['end']=max(event['start']+1/fps,math.floor((end+1e-8)*fps)/fps)
+        event['span']=event['end']-event['start']
     return events
