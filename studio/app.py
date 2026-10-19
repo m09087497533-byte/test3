@@ -48,7 +48,7 @@ def index():
 
 @app.get('/api/health')
 def health():
-    return {'ok': bool(shutil.which('ffmpeg') and shutil.which('ffprobe')), 'version': '0.20'}
+    return {'ok': bool(shutil.which('ffmpeg') and shutil.which('ffprobe')), 'version': '0.21'}
 
 
 from . import transcription
@@ -221,7 +221,7 @@ async def subtitles(file: UploadFile = File(...), voice_id: str = Form(default='
         duration = asset_info(voice_id)['duration'] if voice_id else 0
         scenes = plan_scenes(cues, duration)
         directed=automatic_project(Project(scenes=scenes,subtitles=cues))
-        return {'subtitles': [c.model_dump() for c in cues], 'scenes': [s.model_dump() for s in directed.scenes], 'director_version':12,'effects_version':19,'photo_motion':directed.photo_motion}
+        return {'subtitles': [c.model_dump() for c in cues], 'scenes': [s.model_dump() for s in directed.scenes], 'director_version':12,'effects_version':19,'transitions_version':directed.transitions_version,'photo_motion':directed.photo_motion}
     except (ValueError, ValidationError) as exc:
         raise HTTPException(400, str(exc)) from exc
     finally:
@@ -236,6 +236,12 @@ def reference_rhythm(project: Project):
 @app.post('/api/project/reference-effects')
 def reference_effects(project: Project):
     return apply_reference_effects(project)
+
+
+@app.post('/api/project/color-transitions')
+def color_transitions(project: Project):
+    from .color_transitions import apply_color_transitions
+    return apply_color_transitions(project)
 
 
 class SceneRegenerateRequest(BaseModel):
@@ -347,7 +353,7 @@ def new_project():
     return Project(name='Новая история', library_since=time.time(), scenes=[Scene(duration=4, motion=False)],
                    director_version=12, transition='cut', photo_motion='static',
                    sound_mode='auto', sounds_per_minute=4, sfx_volume=.28,
-                   animate_titles=True, show_subtitles=False, auto_music=True, semantic_media=True,effects_version=19).model_dump()
+                   animate_titles=True, show_subtitles=False, auto_music=True, semantic_media=True,effects_version=19,transitions_version=1).model_dump()
 
 
 from .image_search import scene_query, search_images, import_image
@@ -479,7 +485,7 @@ class AutoMediaRequest(BaseModel):
 
 @app.post('/api/auto-media',status_code=202)
 def start_auto_media(request: AutoMediaRequest):
-    if request.scene_indices is not None and any(i >= len(request.project.scenes) for i in request.scene_indices):
+    if request.scene_indices is not None and (not request.scene_indices or len(set(request.scene_indices))!=len(request.scene_indices) or any(i<0 or i >= len(request.project.scenes) for i in request.scene_indices)):
         raise HTTPException(400, 'Сцена не найдена')
     try:return arrangement_jobs.start(request.project,request.mode,request.replace_existing,request.scene_indices,request.excluded_asset_ids)
     except ValueError as exc:raise HTTPException(409,str(exc)) from None
@@ -506,6 +512,18 @@ def start_playback(project: Project):
     try:
         validate_assets(project)
         return playback_jobs.start(project)
+    except PlaybackBusy as exc:raise HTTPException(409,str(exc)) from None
+    except ValueError as exc:raise HTTPException(400,str(exc)) from None
+
+
+class SelectionPlaybackRequest(BaseModel):
+    project: Project
+    scene_indices: list[int] | None = Field(default=None,min_length=1,max_length=600)
+
+
+@app.post('/api/playback/selection',status_code=202)
+def selection_playback(request: SelectionPlaybackRequest):
+    try:return playback_jobs.start(request.project,selection=True,scene_indices=request.scene_indices)
     except PlaybackBusy as exc:raise HTTPException(409,str(exc)) from None
     except ValueError as exc:raise HTTPException(400,str(exc)) from None
 

@@ -23,14 +23,17 @@ def transition_filter(style, seconds):
         return base
     # P runs from 1 (outgoing) to 0 (incoming). Colored light is confined to
     # the transition; both endpoints retain the original picture and timing.
-    pulse = 'pow(sin(PI*P),2)'
+    # Cache the light masks per pixel. Polynomial falloff avoids evaluating
+    # repeated trigonometric/exponential expressions on every color plane.
+    pulse = '16*P*P*(1-P)*(1-P)'
     if style == 'light_leak':
-        band = f'{pulse}*exp(-pow((X/W-(1-P))/.28,2))'
-        extra = f'if(eq(PLANE,0),115,if(eq(PLANE,1),-26,42))*{band}'
+        prefix=f'st(0,{pulse});st(1,(X/W-(1-P))/.40);st(2,ld(0)/(1+ld(1)*ld(1)*ld(1)*ld(1)));'
+        extra = 'if(eq(PLANE,0),160,if(eq(PLANE,1),-50,80))*ld(2)'
     else:
-        band = f'{pulse}*sin(PI*X/W)'
-        extra = f'if(eq(PLANE,0),55,if(eq(PLANE,1),36,-30))*{band}'
-    return base + f":expr='clip(A*P+B*(1-P)+{extra},0,255)'"
+        prefix=(f'st(0,{pulse});st(1,(X/W-(1-P))/.32);st(2,(X/W-P)/.40);'
+                'st(3,ld(0)/(1+ld(1)*ld(1)*ld(1)*ld(1)));st(4,ld(0)/(1+ld(2)*ld(2)*ld(2)*ld(2)));')
+        extra='if(eq(PLANE,0),70*(ld(3)+ld(4)),if(eq(PLANE,1),85*ld(4)-35*ld(3),70*ld(3)-50*ld(4)))'
+    return base + f":expr='{prefix}clip(A*P+B*(1-P)+{extra},0,255)'"
 
 
 def boundary_style(project: Project, index: int) -> str:
@@ -174,12 +177,12 @@ def assemble(project: Project, pieces: list[Path], folder: Path, progress) -> Pa
     return video
 
 
-def synthesize_sfx(project: Project, output: Path) -> bool:
+def synthesize_sfx(project: Project, output: Path, *, events=None) -> bool:
     if project.sfx_volume == 0:
         return False
     rate = 48000
     from .soundplan import sound_plan
-    plan=sound_plan(project)
+    plan=sound_plan(project) if events is None else events
     if not plan:return False
     count=math.ceil(total_duration(project)*rate)
     # Sparse PCM file: silence occupies no full-duration Python arrays.

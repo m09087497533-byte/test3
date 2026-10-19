@@ -230,7 +230,7 @@ def arrange(project, mode, replace, update, cancelled, scene_indices=None, exclu
 
     def publish(index,message):
         update({'progress':round(index/total*100),'message':message,'assignments':list(imported),
-                'outcomes':list(outcomes),'errors':list(dict.fromkeys(errors)), 'fallbacks':list(fallbacks)})
+                'outcomes':list(outcomes),'errors':list(dict.fromkeys(errors)), 'fallbacks':list(fallbacks),'sources':{'connected':available,'limited':sorted({p for p,k in disabled})}})
 
     for index,scene in enumerate(project.scenes):
         if index not in targets:continue
@@ -256,61 +256,87 @@ def arrange(project, mode, replace, update, cancelled, scene_indices=None, exclu
             outcomes.append({'scene_index':index,'status':'text','reason':fallback.media_reason})
             publish(len(outcomes),f'Сцена {index+1}: текстовая композиция');continue
         chosen=None
+        attempts=[]
         kinds=preferred_kinds(context,mode,index)
-        options=[];seen_options=set()
-        # Compare the metadata of relevant photos and footage before downloading
-        # either. One failing image host must not hide a usable stock result.
+        seen_options=set();attempted_queries=set()
+        searches={}
         for kind in kinds:
+            # Compare providers/kinds at each specificity level; only broaden
+            # again if every actual download from that round failed.
+            seen_queries=set();searches[kind]=[]
             for variant in search_contexts(context,kind):
-                if cancelled():break
-                local=[a for a in library if a['kind']==kind and a['id'] not in excluded and
-                       asset_identity(a) not in excluded and asset_identity(a) not in used and
-                       relevant_candidate(a,variant,local=True)]
-                for item in local:
+                for phrase in query_variants(variant['query']):
+                    if phrase not in seen_queries:
+                        searches[kind].append((variant,phrase));seen_queries.add(phrase)
+
+        def collect(round_index):
+            options=[]
+            for kind in kinds:
+                if round_index>=len(searches[kind]) or cancelled():continue
+                variant,phrase=searches[kind][round_index]
+                for item in library:
                     identity=asset_identity(item)
-                    if identity not in seen_options:
+                    if (item['kind']==kind and item['id'] not in excluded and identity not in excluded and
+                            identity not in used and identity not in seen_options and relevant_candidate(item,variant,local=True)):
                         score=rank_candidate(item,variant,scene.duration,local=True)+.7*(kind==kinds[0])
                         options.append((score,'local',item,variant));seen_options.add(identity)
                 sources=(['commons']+available) if kind=='image' else available
                 for provider in sources:
                     if cancelled():break
+                    label='Wikimedia Commons' if provider=='commons' else provider.title()
                     if (provider,kind) in disabled:continue
-                    for phrase in query_variants(variant['query']):
-                        key=(provider,kind,phrase)
-                        if key not in cache:
-                            try:
-                                if provider=='commons':cache[key]=image_search.search_images(phrase)
-                                elif kind=='image':cache[key]=stock_video.search_photos(provider,phrase)
-                                else:cache[key]=stock_video.search_videos(provider,phrase)
-                            except (ValueError,OSError) as exc:
-                                message=connection_error(exc,'Wikimedia Commons' if provider=='commons' else provider.title()) if isinstance(exc,OSError) else str(exc)
-                                errors.append(message);disabled.add((provider,kind));cache[key]=[]
-                        matches=0
-                        for order,item in enumerate(cache[key]):
-                            identity=asset_identity(item)
-                            if identity not in used and identity not in excluded and identity not in seen_options and relevant_candidate(item,variant):
-                                score=rank_candidate(item,variant,scene.duration,order)+.7*(kind==kinds[0])
-                                options.append((score,provider,item,variant));seen_options.add(identity);matches+=1
-                        if matches or (provider,kind) in disabled or cancelled():break
-                if any(asset_kind(item)==kind for _,_,item,_ in options):break
-        for _,provider,item,variant in sorted(options,key=lambda row:row[0],reverse=True):
-            if cancelled():break
-            if (provider,asset_kind(item)) in disabled:continue
-            try:
-                if provider=='local':asset=item
-                elif provider=='commons':asset=image_search.import_image(item['token'])
-                elif asset_kind(item)=='image':asset=stock_video.import_photo(item['token'])
-                else:asset=stock_video.import_video(item['token'])
+                    key=(provider,kind,phrase)
+                    if key in attempted_queries:continue
+                    attempted_queries.add(key)
+                    publish(len(outcomes),f'Сцена {index+1}: ищем {"фото" if kind=="image" else "видео"} · {label} · {phrase}')
+                    attempt={'provider':label,'kind':kind,'query':phrase,'status':'empty'}
+                    attempts.append(attempt)
+                    if key not in cache:
+                        try:
+                            if provider=='commons':cache[key]=image_search.search_images(phrase)
+                            elif kind=='image':cache[key]=stock_video.search_photos(provider,phrase)
+                            else:cache[key]=stock_video.search_videos(provider,phrase)
+                        except (ValueError,OSError) as exc:
+                            message=connection_error(exc,label) if isinstance(exc,OSError) else str(exc)
+                            errors.append(message);cache[key]=[]
+                            attempt.update(status='error',message=message)
+                            # Other providers stay independent of this failure.
+                            disabled.add((provider,kind))
+                    for order,item in enumerate(cache[key]):
+                        identity=asset_identity(item)
+                        if identity not in used and identity not in excluded and identity not in seen_options and relevant_candidate(item,variant):
+                            score=rank_candidate(item,variant,scene.duration,order)+.7*(kind==kinds[0])
+                            options.append((score,provider,item,variant));seen_options.add(identity)
+                            attempt['status']='candidates'
+            return options
+
+        def download(options):
+            for _,provider,item,variant in sorted(options,key=lambda row:row[0],reverse=True):
                 if cancelled():break
-                chosen=assignment(index,asset,variant,'из библиотеки' if provider=='local' else 'Wikimedia' if provider=='commons' else provider.title())
-                if provider!='local':library.append(asset)
-                break
-            except (ValueError,OSError) as exc:
-                message=connection_error(exc,'Загрузка материала') if isinstance(exc,OSError) else str(exc)
-                errors.append(message)
-                if 'HTTP 429' in message:disabled.add((provider,asset_kind(item)))
-            except Exception:
-                errors.append('Не удалось прочитать один из найденных материалов. Пробуем следующий.')
+                if (provider,asset_kind(item)) in disabled:continue
+                try:
+                    if provider=='local':asset=item
+                    elif provider=='commons':asset=image_search.import_image(item['token'])
+                    elif asset_kind(item)=='image':asset=stock_video.import_photo(item['token'])
+                    else:asset=stock_video.import_video(item['token'])
+                    if cancelled():break
+                    if provider!='local':library.append(asset)
+                    return assignment(index,asset,variant,'из библиотеки' if provider=='local' else 'Wikimedia' if provider=='commons' else provider.title())
+                except (ValueError,OSError) as exc:
+                    message=connection_error(exc,'Загрузка материала') if isinstance(exc,OSError) else str(exc)
+                    errors.append(message)
+                    if 'HTTP 429' in message:disabled.add((provider,asset_kind(item)))
+                except Exception:
+                    message='Не удалось прочитать один из найденных материалов. Пробуем следующий.'
+                    errors.append(message)
+            return None
+
+        # A search hit is not a downloaded frame. If every primary candidate
+        # fails, run the alternative queries on the remaining providers too.
+        for round_index in range(max(len(queries) for queries in searches.values())):
+            if round_index:publish(len(outcomes),f'Сцена {index+1}: пробуем другие запросы и доступные стоки…')
+            chosen=download(collect(round_index))
+            if chosen or cancelled():break
         if cancelled():break
         if not chosen and project.director_version>=9:
             # A relevant asset may return later, but never in adjacent scenes.
@@ -337,14 +363,20 @@ def arrange(project, mode, replace, update, cancelled, scene_indices=None, exclu
             chosen['restore_visual']=scene.automatic_text
             imported.append(chosen);used.add(asset_identity(chosen['asset']))
             identity=asset_identity(chosen['asset']);usage[identity]=usage.get(identity,0)+1
-            outcomes.append({'scene_index':index,'status':'assigned','reason':chosen['reason']})
+            outcomes.append({'scene_index':index,'status':'assigned','reason':chosen['reason'],'attempts':attempts})
         else:
-            reason='Материал для сцены не найден. Монтаж не завершён: программа не будет заменять все кадры текстом. Повторите поиск после восстановления доступа к источникам.'
-            if mode=='videos' and not available:reason='Для поиска видео подключите Pexels или Pixabay либо загрузите подходящий футаж в библиотеку.'
-            if any('HTTP 429' in e for e in errors):reason='Источник ограничил загрузку (HTTP 429). Сцена ждёт фото или футаж; повторите подбор после снятия лимита.'
-            outcomes.append({'scene_index':index,'status':'missing','reason':reason})
+            tried=list(dict.fromkeys(a['provider'] for a in attempts))
+            limited=[('Wikimedia' if provider=='commons' else provider.title()) for provider,kind in sorted(disabled) if kind in kinds]
+            reason='Подходящий кадр пока не найден.'
+            if tried:reason+=' Проверены: '+', '.join(tried)+'.'
+            if limited:reason+=' Недоступны: '+', '.join(dict.fromkeys(limited))+'.'
+            not_connected=[p.title() for p in ('pexels','pixabay') if p not in available]
+            if not_connected:reason+=' Для дополнительных стоков подключите '+ ' / '.join(not_connected)+'.'
+            reason+=' Можно посмотреть найденные сцены и заменить кадры.'
+            outcomes.append({'scene_index':index,'status':'missing','reason':reason,'attempts':attempts})
         publish(len(outcomes),f'Обработано {len(outcomes)} из {total} сцен')
-    return {'assignments':imported,'outcomes':outcomes,'fallbacks':fallbacks,'errors':list(dict.fromkeys(errors))}
+    return {'assignments':imported,'outcomes':outcomes,'fallbacks':fallbacks,'errors':list(dict.fromkeys(errors)),
+            'sources':{'connected':available,'limited':sorted({p for p,k in disabled})}}
 
 
 class ArrangementJobs:

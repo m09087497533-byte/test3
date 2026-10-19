@@ -260,10 +260,10 @@ def validate_assets(project: Project):
             raise ValueError('Выбранный файл не содержит звуковую дорожку')
 
 
-def render(project: Project, folder: Path, progress, *, draft=False):
+def render(project: Project, folder: Path, progress, *, draft=False, audio_ranges=None, sound_events=None):
     validate_assets(project)
     from .visual_fallback import complete_visuals
-    project=complete_visuals(project)
+    if audio_ranges is None:project=complete_visuals(project)
     (folder / 'sources.txt').write_text(source_credits(project), encoding='utf-8')
     size = (960, 540) if draft else ((1920, 1080) if project.resolution == '1080p' else (1280, 720))
     w, h = size
@@ -414,13 +414,17 @@ def render(project: Project, folder: Path, progress, *, draft=False):
     output = folder / 'film.mp4'
     audio_ids = [(asset_path(i), volume, role) for i,volume,role in
                  [(project.voice_id,1.0,'voice'),(project.music_id,project.music_volume,'music')] if i]
+    if audio_ranges is not None:
+        from .audio_selection import copy_ranges
+        audio_ids=[(copy_ranges(path,audio_ranges,folder/f'selected-{role}.wav'),volume,role)
+                   for path,volume,role in audio_ids]
     generated_music=None
     if project.auto_music and not project.music_id and project.voice_id:
         from .music import ambient_loop
         generated_music=ambient_loop(folder/'ambient.wav')
         audio_ids.append((generated_music,project.music_volume,'music'))
     sfx = folder / 'transitions.wav'
-    if synthesize_sfx(project, sfx):
+    if synthesize_sfx(project, sfx, events=sound_events):
         audio_ids.append((sfx, 1.0, 'sfx'))
     args = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-filter_complex_threads', '1', '-i', str(video)]
     if audio_ids:

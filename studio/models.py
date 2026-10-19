@@ -90,6 +90,7 @@ class Project(BaseModel):
     auto_media_after_subtitles: bool = True
     semantic_media: bool = False
     effects_version: int = Field(default=0, ge=0, le=19)
+    transitions_version: int = Field(default=0, ge=0, le=1)
     director_version: int = Field(default=0, ge=0, le=12)
     show_subtitles: bool = True
     photo_motion: Literal['static', 'smooth'] = 'static'

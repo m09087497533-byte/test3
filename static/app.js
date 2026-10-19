@@ -316,6 +316,7 @@ on('#new-project', 'click', async () => {
   $('#scene-editor').open=false;$('#media-library').open=false;
   localStorage.removeItem(jobStorage); localStorage.removeItem(playbackStorage);
   localStorage.removeItem(rhythmStorage); localStorage.removeItem(effectsStorage); localStorage.removeItem(autoMediaStorage);
+  localStorage.removeItem(colorBackupStorage);$('#frames-dialog').close();
   autoMediaTask=null;
   playback.record=null; playback.ready=false; playback.busy=false;
   polling=false;
@@ -344,6 +345,7 @@ on('#file-project', 'change', async e => {
   project = valid; selected = 0;
   if(value.workflow_step===undefined)project.workflow_step=hasMontageContent()?3:1;
   if((project.effects_version||0)<19)await applyReferenceLook();
+  if((project.transitions_version||0)<1)await applyColorTransitions();
   refresh(); toast('Проект открыт');
 });
 on('#close-export', 'click', () => $('#export-dialog').close());
@@ -438,6 +440,7 @@ async function init() {
     } catch(e) {toast('Не удалось автоматически обновить монтаж: '+e.message,true);}
   }
   if((project.effects_version||0)<19)await applyReferenceLook().catch(e=>toast(e.message,true));
+  if((project.transitions_version||0)<1)await applyColorTransitions().catch(e=>toast(e.message,true));
   project.sound_mode ??= 'auto';
   project.sounds_per_minute ??= 4;
   refresh();
@@ -656,6 +659,7 @@ function renderArrangementReport(state,record) {
     const assigned=(state.assignments||[]).find(a=>a.scene_index===row.scene_index);
     badge.textContent=record.skipped?.includes(row.scene_index)?'Изменена вручную':assigned?(assigned.asset.kind==='video'?'Видео':'Фото'):row.status==='text'?'Текст':row.status==='missing'?'Нужен кадр':'Сохранено';
     if(assigned) {const q=document.createElement('small');q.textContent=assigned.query;copy.append(q);}
+    if(row.attempts?.length){const tried=document.createElement('small');tried.textContent='Проверены: '+[...new Set(row.attempts.map(a=>a.provider))].join(', ');copy.append(tried);}
     button.append(index,copy,badge);
     button.addEventListener('click',()=>{if(project.scenes[row.scene_index]){selected=row.scene_index;openSceneEditor();refresh();$('#scene-preview').scrollIntoView({behavior:'smooth',block:'center'});}});
     $('#arrangement-results').append(button);
@@ -803,6 +807,7 @@ function playbackSignature() {
   return JSON.stringify(ordered(copy));
 }
 function playbackCurrent() {return playback.ready && playback.record?.signature===playbackSignature();}
+function playbackMatches(selection=null){return playbackCurrent() && JSON.stringify(playback.record.selection ?? null)===JSON.stringify(selection);}
 function showEditingFrame() {
   const video=$('#montage-player');video.pause();video.classList.add('hidden');
   $('#scene-preview').classList.remove('hidden');$('#preview-subtitle').classList.remove('hidden');
@@ -812,7 +817,7 @@ function showEditingFrame() {
 }
 function updatePlaybackState() {
   if(!project)return;
-  const current=playbackCurrent(),video=$('#montage-player');
+  const current=playbackMatches(),video=$('#montage-player');
   const stale=!!playback.record && playback.record.signature!==playbackSignature();
   if(stale) {
     if(!video.classList.contains('hidden'))showEditingFrame();
@@ -821,32 +826,42 @@ function updatePlaybackState() {
   $('#watch-montage').disabled=playback.busy || !!autoMediaTask;
   $('#watch-scene').disabled=playback.busy || !!autoMediaTask;
   $('#watch-montage').textContent=playback.busy?'Готовим просмотр…':stale?'↻ Обновить просмотр':current && !video.paused?'⏸ Пауза':current && video.currentTime>0 && !video.ended?'▶ Продолжить':'▶ Смотреть монтаж';
-  $('#watch-scene').textContent='С выбранной сцены';
+  $('#watch-scene').textContent='▶ Смотреть выбранную сцену';
   if(autoMediaTask && !playback.busy)$('#playback-status').textContent='Дождись окончания подбора материалов, затем запусти просмотр.';
   else if(!playback.busy && $('#playback-status').textContent.startsWith('Дождись окончания подбора'))$('#playback-status').textContent='Кадры готовы. Нажми «Смотреть монтаж», чтобы проверить фильм со звуком.';
+  paintReviewControls();
 }
 function markPlayingScene() {
   if(!playbackCurrent())return;
   const time=$('#montage-player').currentTime;
   let cursor=0,index=project.scenes.length-1;
-  for(let i=0;i<project.scenes.length;i++) {cursor+=Math.round(project.scenes[i].duration*30)/30;if(time<cursor){index=i;break;}}
+  if(playback.record.segments?.length){const segments=playback.record.segments;index=(segments.find(s=>time<s.preview_end) || segments.at(-1)).scene_index;}
+  else for(let i=0;i<project.scenes.length;i++) {cursor+=Math.round(project.scenes[i].duration*30)/30;if(time<cursor){index=i;break;}}
   $$('.scene-card').forEach((card,i)=>card.classList.toggle('playing',i===index && !$('#montage-player').classList.contains('hidden')));
-  $('#playing-scene').textContent=`${seconds(time)} / ${seconds(duration())} · Сцена ${index+1} из ${project.scenes.length}`;
+  const length=playback.record.duration || duration();
+  $('#playing-scene').textContent=`${seconds(time)} / ${seconds(length)} · Сцена ${index+1} из ${project.scenes.length}${playback.record.selection?' · только выбранные сцены':''}`;
   if(!$('#montage-player').classList.contains('hidden'))$('#scene-counter').textContent=`${String(index+1).padStart(2,'0')} / ${String(project.scenes.length).padStart(2,'0')}`;
   return index;
 }
 function seekVisiblePlayback(time) {
   const video=$('#montage-player');
-  if(playbackCurrent() && !video.classList.contains('hidden')) {video.pause();video.currentTime=time;markPlayingScene();updatePlaybackState();}
+  if(playbackCurrent() && !video.classList.contains('hidden')) {
+    video.pause();
+    const segments=playback.record.segments;
+    if(segments){const segment=segments.find(s=>time>=s.source_start && time<s.source_end);if(!segment)return;time=segment.preview_start+time-segment.source_start;}
+    video.currentTime=time;markPlayingScene();updatePlaybackState();
+  }
 }
 async function showPlayback(time,autoplay) {
   if(!playbackCurrent())return;
   const video=$('#montage-player');
   video.classList.remove('hidden');$('#scene-preview').classList.add('hidden');$('#preview-subtitle').classList.add('hidden');$('#preview-loading').classList.add('hidden');
   $('#edit-frame').classList.remove('hidden');$('#playback-position').classList.remove('hidden');$('#stage-label').textContent='ПРОСМОТР МОНТАЖА · 540p';
+  if(playback.record.selection)$('#stage-label').textContent=`НАЙДЕННЫЕ СЦЕНЫ · ${playback.record.selection.length} ИЗ ${project.scenes.length}`;
   function seek() {if(Number.isFinite(time))video.currentTime=Math.min(time,Math.max(0,video.duration-.04));markPlayingScene();}
   if(video.readyState>=1)seek();else video.addEventListener('loadedmetadata',seek,{once:true});
   $('#playback-status').textContent='Просмотр готов. Перематывай видео или выбирай сцену в ленте. «Изменить этот кадр» вернёт к оформлению.';
+  if(playback.record.selection)$('#playback-status').textContent=`Показаны сцены ${playback.record.selection.map(i=>i+1).join(', ')} с соответствующей озвучкой. Незаполненные сцены остались в проекте. «Изменить этот кадр» откроет его редактор.`;
   if(autoplay) {
     video.scrollIntoView({behavior:'smooth',block:'center'});
     $('#voice-info audio').pause();
@@ -877,6 +892,7 @@ async function pollPlayback(record) {
     }
     if(state.status==='done') {
       playback.busy=false;playback.ready=true;
+      record.segments=state.segments;record.duration=state.duration;rememberPlayback(record);
       const video=$('#montage-player'),url=`/api/playback/${record.id}/video`;
       if(video.getAttribute('src')!==url) {video.src=url;video.load();}
       $('#playback-progress').classList.add('hidden');
@@ -891,12 +907,17 @@ async function pollPlayback(record) {
     $('#playback-progress').classList.add('hidden');updatePlaybackState();
   }
 }
-async function watchMontage(time=null) {
-  if(!canRenderWorkflow())return;
-  if(autoMediaTask)throw new Error('Дождись завершения подбора материалов.');
+async function watchMontage(time=null,selection=null) {
+  if(selection===null){if(!canRenderWorkflow())return;}
+  else {
+    if(!selection.length)throw new Error('Пока нет сцен с готовыми кадрами. Запусти подбор или добавь свои.');
+    if(selection.some(i=>!readySceneIndices().includes(i)))throw new Error('Для выбранной сцены ещё нужен кадр.');
+    if(autoMediaTask || speechRecord)throw new Error('Дождись завершения распознавания и подбора.');
+  }
   if(playback.busy)return;
+  await enterWorkflowStep(4,{auto:false});
   const video=$('#montage-player');
-  if(playbackCurrent()) {
+  if(playbackMatches(selection)) {
     if(time===null && !video.paused && !video.classList.contains('hidden')) {video.pause();updatePlaybackState();return;}
     await showPlayback(time===null?(video.ended?0:video.currentTime):time,true);return;
   }
@@ -904,8 +925,8 @@ async function watchMontage(time=null) {
   const signature=playbackSignature();playback.busy=true;playback.ready=false;playback.seek=time ?? 0;playback.autoplay=true;
   updatePlaybackState();$('#playback-status').textContent='Подготовка просмотра: фото, видео, озвучка, субтитры и переходы…';
   try {
-    const job=await (await api('/api/playback',jsonPost(project))).json();
-    const record={id:job.id,signature};playback.record=record;rememberPlayback(record);
+    const job=await (await api(selection===null?'/api/playback':'/api/playback/selection',jsonPost(selection===null?project:{project,scene_indices:selection}))).json();
+    const record={id:job.id,signature,selection,segments:job.segments,duration:job.duration};playback.record=record;rememberPlayback(record);
     await pollPlayback(record);
   } catch(e) {playback.busy=false;$('#playback-status').textContent=e.message;updatePlaybackState();throw e;}
 }
@@ -918,7 +939,7 @@ async function restorePlayback() {
   playback.busy=true;updatePlaybackState();await pollPlayback(record);
 }
 on('#watch-montage','click',()=>watchMontage());
-on('#watch-scene','click',()=>watchMontage(sceneStart(selected)));
+on('#watch-scene','click',()=>watchMontage(0,[selected]));
 on('#edit-frame','click',()=>{showEditingFrame();openSceneEditor();refresh();});
 on('#edit-playing-scene','click',()=>{const index=markPlayingScene();if(Number.isInteger(index))selected=index;showEditingFrame();openSceneEditor();refresh();$('#inspector-title').scrollIntoView({behavior:'smooth',block:'start'});});
 $('#montage-player').addEventListener('timeupdate',markPlayingScene);

@@ -46,6 +46,7 @@ function paintWorkflow() {
   // One canvas/player, moved between editing and review without duplicate IDs.
   const target=step===3?$('#edit-stage'):$('#review-stage'),stage=$('.stage-shell');
   if(stage.parentElement!==target)target.append(stage);
+  paintReviewControls();
 }
 
 async function enterWorkflowStep(step, {scroll=true, auto=true}={}) {
@@ -78,6 +79,7 @@ function initWorkflow() {
   if(legacy)project.workflow_step=hasMontageContent()?3:1;
   if(legacy && project.subtitles.length && missingVisuals().length)project.workflow_media_pending=true;
   if(!workflowInitialized){
+    initReview();
     on('#workflow-next','click',async()=>{
       if(project.workflow_step===1 && !hasMontageContent() && project.voice_id){await startSpeech();return;}
       await enterWorkflowStep(Math.min(4,project.workflow_step+1));

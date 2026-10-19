@@ -19,9 +19,9 @@ ROOT.mkdir(exist_ok=True)
 
 
 def fingerprint(project):
-    data=project.model_dump(exclude={'name','version','resolution','auto_media_mode','auto_media_after_subtitles'})
+    data=project.model_dump(exclude={'name','version','resolution','auto_media_mode','auto_media_after_subtitles','workflow_step','workflow_media_pending'})
     for scene in data['scenes']:scene.pop('media_reason',None)
-    return hashlib.sha256(('renderer-19:'+json.dumps(data,sort_keys=True,ensure_ascii=False,separators=(',',':'))).encode()).hexdigest()
+    return hashlib.sha256(('renderer-21:'+json.dumps(data,sort_keys=True,ensure_ascii=False,separators=(',',':'))).encode()).hexdigest()
 
 
 class PlaybackBusy(ValueError):pass
@@ -45,8 +45,15 @@ class PlaybackJobs:
         folder=self.root/identifier
         temp=folder/'status.tmp';temp.write_text(json.dumps(state,ensure_ascii=False));temp.replace(folder/'status.json')
 
-    def start(self,project):
+    def start(self,project,*,selection=False,scene_indices=None):
         digest=fingerprint(project)
+        segments=None;events=None;original=project
+        if selection:
+            from .preview_selection import select_preview
+            project,segments,events=select_preview(project,scene_indices)
+            from .render import validate_assets
+            validate_assets(project)
+            digest=hashlib.sha256((digest+':selection:'+json.dumps([s['scene_index'] for s in segments])).encode()).hexdigest()
         with self.lock:
             for identifier,state in self.states.items():
                 if state['fingerprint']==digest and (state['status'] in ('queued','running') or
@@ -55,21 +62,23 @@ class PlaybackJobs:
             if any(s['status'] in ('queued','running') for s in self.states.values()):
                 raise PlaybackBusy('Уже готовится другой просмотр. Дождитесь завершения и обновите его.')
             identifier=uuid.uuid4().hex;(self.root/identifier).mkdir()
-            (self.root/identifier/'project.json').write_text(project.model_dump_json(indent=2))
+            (self.root/identifier/'project.json').write_text(original.model_dump_json(indent=2))
             state={'id':identifier,'status':'queued','progress':0,'message':'Подготовка просмотра · 540p',
-                   'fingerprint':digest,'duration':total_duration(project),'created':time.time()}
+                   'fingerprint':digest,'duration':total_duration(project),'created':time.time(),
+                   'mode':'selection' if selection else 'full','segments':segments}
             self.states[identifier]=state;self._write(identifier,state)
-        self.pool.submit(self._run,identifier,project)
+        self.pool.submit(self._run,identifier,project,segments,events)
         return dict(state)
 
-    def _run(self,identifier,project):
+    def _run(self,identifier,project,segments=None,events=None):
         def progress(percent,message):
             with self.lock:
                 state=self.states[identifier]
                 state.update(status='running',progress=percent,message=message)
                 self._write(identifier,state)
         try:
-            render(project,self.root/identifier,progress,draft=True)
+            if segments is None:render(project,self.root/identifier,progress,draft=True)
+            else:render(project,self.root/identifier,progress,draft=True,audio_ranges=segments,sound_events=events)
             with self.lock:
                 state=self.states[identifier];state.update(status='done',progress=100,message='Просмотр готов · 540p')
                 self._write(identifier,state)

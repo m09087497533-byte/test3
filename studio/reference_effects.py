@@ -96,4 +96,5 @@ def apply_reference_effects(project):
         elif scene.shot_role!=following.shot_role and following.shot_role=='document' and cursor-last_accent>=12:
             scene.transition_out='light_leak';scene.transition_duration=.3;last_accent=cursor
         elif scene.shot_role=='document' and following.shot_role=='document':scene.transition_out='dissolve'
-    return result
+    from .color_transitions import apply_color_transitions
+    return apply_color_transitions(result)
