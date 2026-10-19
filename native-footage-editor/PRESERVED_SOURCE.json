@@ -1,0 +1,64 @@
+{
+  "unchanged_files": [
+    {
+      "file": "footage.py",
+      "sha256": "088fc0a4294cfd467fbf2cc25b94ace385e92a86ef1f1da2840a90b6c8676b4b"
+    },
+    {
+      "file": "semantic.py",
+      "sha256": "d5252a52810259b7398df99930ad2b9f505ec1e2faca48a54acc4b15622cfeb7"
+    },
+    {
+      "file": "local_models.py",
+      "sha256": "2cf953f58747b261e59a246003d9bf8858b61e730eb3935c1c51e5f766854677"
+    },
+    {
+      "file": "transcribe.py",
+      "sha256": "9ab801da7ac0eb2483d95cee68786dc20c01f89a97ff908dd74e883753738da4"
+    },
+    {
+      "file": "subtitles.py",
+      "sha256": "30ded64885f2f41acfb3ecf8db3acb452d24b0680edf1ebe97e74ede2558f0f2"
+    },
+    {
+      "file": "network.py",
+      "sha256": "a26a9b6fb0b7cf0236b3dc3c3a9d70082b64d7ea659c1998742156acb81933e6"
+    },
+    {
+      "file": "bootstrap.py",
+      "sha256": "b909a693762d79891cd1c71405e9015ea2a298c27e3dcab587e328332327741b"
+    },
+    {
+      "file": "setup_local.py",
+      "sha256": "a32c5a280a47f62b383da9950091d7bd5e018aac83b7fb4df398dc4f875002d7"
+    },
+    {
+      "file": "requirements.txt",
+      "sha256": "21fc9bddb61e617f6bfe97de4b313cb7d0f8c7357a9844fab32b22e5c7173141"
+    },
+    {
+      "file": "discover_scene.py",
+      "sha256": "4abcbd537d7ab4c9a8e5f94124e531052ba7b552ce63ab055c5c29e9df760b03"
+    },
+    {
+      "file": "Install.command",
+      "sha256": "245e6260acc130cfcf1a17b254acf3f2af5e1f11ff1bc43def39dcdf60470de2"
+    },
+    {
+      "file": "Start.command",
+      "sha256": "fc73e7118d67388b9c5712e105bf812bf76a578dbb1a7aa44ce554acb1fdc0ff"
+    }
+  ],
+  "unchanged_main_methods": [
+    "_search_selected",
+    "_select_candidate",
+    "_pick_local_footage",
+    "_auto_pick_all",
+    "_stop_autopick",
+    "_selected_effects",
+    "_assign",
+    "_import_subtitles",
+    "_run_transcribe"
+  ],
+  "unchanged_effect_function": "assign_effects"
+}

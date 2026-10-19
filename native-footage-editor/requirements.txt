@@ -1,0 +1,11 @@
+python-dotenv>=1.0,<2
+pillow>=10,<13
+certifi
+numpy>=1.26,<3
+torch>=2.6,<3
+transformers>=4.48,<5
+sentencepiece>=0.2,<1
+sacremoses>=0.1,<1
+faster-whisper>=1.1,<2
+# PyAV 19 removes an argument used by released faster-whisper versions.
+av>=16,<19

@@ -1,0 +1,42 @@
+{
+  "frames": 800,
+  "duration": 32,
+  "width": 1280,
+  "height": 720,
+  "rotation": [
+    "none",
+    "light_leak",
+    "color_wash",
+    "transition_zoom",
+    "none",
+    "light_leak",
+    "color_wash",
+    "transition_zoom"
+  ],
+  "accents": 6,
+  "sound_events": [
+    {
+      "start": 0.36,
+      "end": 1.71,
+      "time": 0.58,
+      "style": "stamp",
+      "kind": "title"
+    },
+    {
+      "start": 4.0,
+      "end": 4.45,
+      "time": 4.22,
+      "style": "paper",
+      "kind": "title"
+    },
+    {
+      "start": 8.0,
+      "end": 8.45,
+      "time": 8.22,
+      "style": "sweep",
+      "kind": "title"
+    }
+  ],
+  "max_sound_outside_entrances": 0.0,
+  "max_sound_inside": 0.2928900122642517
+}
