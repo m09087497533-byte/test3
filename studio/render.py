@@ -367,7 +367,7 @@ def render(project: Project, folder: Path, progress, *, draft=False):
     if project.show_subtitles and project.subtitles and not use_ass:
         progress(86, 'Субтитры: резервный способ для FFmpeg без libass')
         video=burn_captions(video,project.subtitles,size,sum(frame_count(s) for s in project.scenes),folder)
-    progress(87, 'Сведение озвучки и звуков переходов')
+    progress(87, 'Сведение озвучки и звуков появления текста')
     output = folder / 'film.mp4'
     audio_ids = [(asset_path(i), volume, role) for i,volume,role in
                  [(project.voice_id,1.0,'voice'),(project.music_id,project.music_volume,'music')] if i]

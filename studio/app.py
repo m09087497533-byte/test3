@@ -18,6 +18,7 @@ from .media import ASSETS, JOBS, ROOT, asset_info, asset_path, probe, run
 from .models import Project, Scene, total_duration
 from .render import preview, render, validate_assets
 from .director import automatic_project
+from .reference_effects import apply_reference_effects
 from .subtitles import parse_subtitles, plan_scenes, apply_reference_rhythm
 
 app = FastAPI(title='Кадр — видеомастерская', docs_url='/api/docs')
@@ -47,7 +48,7 @@ def index():
 
 @app.get('/api/health')
 def health():
-    return {'ok': bool(shutil.which('ffmpeg') and shutil.which('ffprobe')), 'version': '0.17.1'}
+    return {'ok': bool(shutil.which('ffmpeg') and shutil.which('ffprobe')), 'version': '0.18'}
 
 
 from . import transcription
@@ -219,7 +220,7 @@ async def subtitles(file: UploadFile = File(...), voice_id: str = Form(default='
         duration = asset_info(voice_id)['duration'] if voice_id else 0
         scenes = plan_scenes(cues, duration)
         directed=automatic_project(Project(scenes=scenes,subtitles=cues))
-        return {'subtitles': [c.model_dump() for c in cues], 'scenes': [s.model_dump() for s in directed.scenes], 'director_version':12}
+        return {'subtitles': [c.model_dump() for c in cues], 'scenes': [s.model_dump() for s in directed.scenes], 'director_version':12,'effects_version':18}
     except (ValueError, ValidationError) as exc:
         raise HTTPException(400, str(exc)) from exc
     finally:
@@ -229,6 +230,11 @@ async def subtitles(file: UploadFile = File(...), voice_id: str = Form(default='
 @app.post('/api/project/reference-rhythm')
 def reference_rhythm(project: Project):
     return automatic_project(project)
+
+
+@app.post('/api/project/reference-effects')
+def reference_effects(project: Project):
+    return apply_reference_effects(project)
 
 
 class SceneRegenerateRequest(BaseModel):
@@ -340,7 +346,7 @@ def new_project():
     return Project(name='Новая история', library_since=time.time(), scenes=[Scene(duration=4, motion=False)],
                    director_version=12, transition='cut', photo_motion='static',
                    sound_mode='auto', sounds_per_minute=4, sfx_volume=.28,
-                   animate_titles=True, show_subtitles=False, auto_music=True, semantic_media=True).model_dump()
+                   animate_titles=True, show_subtitles=False, auto_music=True, semantic_media=True,effects_version=18).model_dump()
 
 
 from .image_search import scene_query, search_images, import_image

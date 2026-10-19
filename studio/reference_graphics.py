@@ -59,6 +59,10 @@ def reference_frame(event,size,elapsed):
     if neon:
         glow=glyphs.filter(ImageFilter.GaussianBlur(w*.008))
         layer.alpha_composite(glow)
+    elif event.effect=='stamp':
+        from types import SimpleNamespace
+        from .title_animation import title_frame
+        glyphs=title_frame(glyphs,SimpleNamespace(title_duration=event.duration,title_decoration='none'),'stamp',elapsed)
     layer.alpha_composite(glyphs)
     # Draw the tilted ellipse independently of the glyph reveal.
     if event.decoration=='ring':

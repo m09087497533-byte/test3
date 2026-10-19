@@ -4,6 +4,7 @@ import re
 from .models import Project, Scene, TextEvent, frame_count
 from .narration import emphasis_events,has_stem
 from .limits import MAX_SCENES
+from .reference_effects import apply_reference_effects
 
 
 def story_boundaries(cues, end, slots=MAX_SCENES):
@@ -63,8 +64,8 @@ def automatic_project(project, *, rebuild=True):
             scene.motion=False;scene.transition_out='cut'
             if 'рукопис' in (scene.title+' '+scene.caption).lower():scene.picture_effect='inset'
             scenes.append(scene)
-        return project.model_copy(update={'scenes':scenes,'director_version':12,'photo_motion':'static','transition':'cut',
-                                          'sound_mode':'auto','sounds_per_minute':4,'sfx_volume':.28})
+        return apply_reference_effects(project.model_copy(update={'scenes':scenes,'director_version':12,'photo_motion':'static','transition':'cut',
+                                          'sound_mode':'auto','sounds_per_minute':4,'sfx_volume':.28}))
     end=sum(frame_count(s) for s in project.scenes)
     points=story_boundaries(project.subtitles,end) if rebuild else [0]
     if not rebuild:
@@ -114,7 +115,7 @@ def automatic_project(project, *, rebuild=True):
         elif index and index%3==0:
             scenes[-1].transition_out='dissolve'
         scenes.append(scene)
-    return Project.model_validate({**project.model_dump(),'scenes':[s.model_dump() for s in scenes],
+    return apply_reference_effects(Project.model_validate({**project.model_dump(),'scenes':[s.model_dump() for s in scenes],
                                    'transition':'cut','photo_motion':'static','animate_titles':True,
                                    'sound_mode':'auto','sounds_per_minute':4,'sfx_volume':.28,
-                                   'director_version':12})
+                                   'director_version':12}))

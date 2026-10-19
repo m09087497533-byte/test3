@@ -46,15 +46,32 @@ def emphasis_events(cues):
         candidates.append(dict(text=match.group(),start=start,end=start+4.5,layout='center',effect='scroll',decoration='none',duration=.65,priority=5,treatment='italic'))
     dates=sorted((e for e in candidates if e['layout']=='number'),key=lambda e:e['start'])
     for i,event in enumerate(dates):
-        event.update(treatment='neon' if i%2==0 else 'chromatic',duration=.85,end=event['start']+3.5)
+        event.update(treatment='neon' if i%2==0 else 'chromatic',effect='reveal' if i%2==0 else 'stamp',duration=.85,end=event['start']+3.5)
     for event in candidates:
         if event['text'] in ('НЕ НАКАЗАНИЕ','СТИХ ЗА СТИХОМ','ВЫ УВИДИТЕ ВОЗДАЯНИЕ'):
             event.update(treatment='italic',layout='center',duration=.65)
             if event['effect']=='fade':event['effect']='scroll'
+    # For other subjects use only a short, complete phrase that was actually
+    # spoken. Existing date/quote emphasis keeps priority; no invented slogans.
+    occupied_minutes={int(e['start']//60) for e in candidates}
+    generic_count=0
+    for cue in cues:
+        phrase=' '.join(cue.text.split()).strip()
+        if int(cue.start//60) in occupied_minutes:
+            continue
+        if not (12<=len(phrase)<=70 and 3<=len(phrase.split())<=10 and phrase[-1:] in '.!?'):
+            continue
+        if re.search(r'\d{3,}',phrase):
+            continue
+        effect,layout=(('stamp','label'),('typewriter','center'),('scroll','grid'))[generic_count%3]
+        generic_count+=1
+        candidates.append(dict(text=phrase.rstrip('.!?'),start=cue.start,end=min(cue.end,cue.start+2.8),
+                               layout=layout,effect=effect,decoration='none',duration=.7,priority=1))
     chosen=[]
     seen_text=set()
     minute_count={}
     for event in sorted(candidates,key=lambda e:(-e['priority'],e['start'])):
+        if event['priority']==1 and any(abs(event['start']-old['start'])<8 for old in chosen):continue
         if any(abs(event['start']-old['start'])<.6 for old in chosen):continue
         if event['text'] in seen_text:continue
         minute=int(event['start']//60)

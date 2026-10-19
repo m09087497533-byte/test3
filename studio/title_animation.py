@@ -3,7 +3,7 @@ import math
 import subprocess
 from PIL import Image, ImageDraw, ImageFilter
 
-ADVANCED = {'scroll', 'perspective', 'reveal'}
+ADVANCED = {'scroll', 'perspective', 'reveal', 'stamp', 'typewriter'}
 
 
 def perspective_coefficients(destination, source):
@@ -45,9 +45,14 @@ def title_frame(layer, scene, effect, elapsed):
              (center+bottom_width/2,bottom),(center-bottom_width/2,bottom)]
         src=[(x0,y0),(x1,y0),(x1,y1),(x0,y1)]
         result=layer.transform(layer.size,Image.Transform.PERSPECTIVE,perspective_coefficients(dst,src),Image.Resampling.BICUBIC)
-    elif effect=='reveal':
+    elif effect=='stamp':
+        ratio=1+.24*(1-ease)
+        scaled=layer.resize((round(w*ratio),round(h*ratio)),Image.Resampling.BICUBIC)
+        result.paste(scaled,((w-scaled.width)//2,(h-scaled.height)//2))
+    elif effect in ('reveal','typewriter'):
         # Clip left to right, preserving glyph positions and line wrapping.
-        right=round(x0+(x1-x0)*ease)
+        fraction=ease if effect=='reveal' else math.floor(p*max(1,len(scene.title)))/max(1,len(scene.title))
+        right=round(x0+(x1-x0)*fraction)
         if right>x0: result.paste(layer.crop((0,0,right,h)),(0,0))
     else:
         dx=round(w*(1-ease)) if effect=='scroll' else -round(w*(1-ease)) if effect=='slide' else 0

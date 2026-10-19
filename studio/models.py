@@ -9,7 +9,7 @@ class TextEvent(BaseModel):
     start: float = Field(ge=0,le=30)
     end: float = Field(gt=0,le=30)
     duration: float = Field(default=.45,ge=.033333,le=3)
-    effect: Literal['fade','scroll','perspective','reveal'] = 'fade'
+    effect: Literal['fade','scroll','perspective','reveal','stamp','typewriter'] = 'fade'
     layout: Literal['center','number','grid','label','counter'] = 'center'
     decoration: Literal['none','ring','underline'] = 'none'
     elapsed: float = Field(default=0,ge=0,le=10)
@@ -39,15 +39,15 @@ class Scene(BaseModel):
     title_end: float | None = Field(default=None, gt=0, le=30)
     motion: bool = True
     motion_style: Literal['push', 'pull', 'left', 'right'] = 'push'
-    transition_out: Literal['inherit', 'cut', 'dissolve', 'slide', 'flash', 'blur', 'wipe'] = 'inherit'
+    transition_out: Literal['inherit', 'cut', 'dissolve', 'slide', 'flash', 'blur', 'wipe', 'light_leak', 'color_wash', 'zoom'] = 'inherit'
 
 
-    title_effect: Literal['inherit', 'static', 'fade', 'rise', 'slide', 'scroll', 'perspective', 'reveal'] = 'inherit'
+    title_effect: Literal['inherit', 'static', 'fade', 'rise', 'slide', 'scroll', 'perspective', 'reveal', 'stamp', 'typewriter'] = 'inherit'
     title_delay: float = Field(default=0, ge=0, le=29)
     title_duration: float = Field(default=.3, ge=.033333, le=3)
     title_decoration: Literal['none', 'ring', 'underline'] = 'none'
     title_exit: bool = False
-    title_sound: Literal['none', 'click', 'impact', 'swish'] = 'none'
+    title_sound: Literal['none', 'click', 'impact', 'swish', 'paper', 'sweep', 'chime', 'stamp', 'spark'] = 'none'
 
     @model_validator(mode='after')
     def title_timing(self):
@@ -79,11 +79,12 @@ class Project(BaseModel):
     auto_media_mode: Literal['mixed', 'photos', 'videos'] = 'mixed'
     auto_media_after_subtitles: bool = True
     semantic_media: bool = False
+    effects_version: int = Field(default=0, ge=0, le=18)
     director_version: int = Field(default=0, ge=0, le=12)
     show_subtitles: bool = True
     photo_motion: Literal['static', 'smooth'] = 'static'
     resolution: Literal['720p', '1080p'] = '720p'
-    transition: Literal['cut', 'fade', 'mixed', 'dissolve', 'slide', 'flash', 'blur', 'wipe'] = 'fade'
+    transition: Literal['cut', 'fade', 'mixed', 'dissolve', 'slide', 'flash', 'blur', 'wipe', 'light_leak', 'color_wash', 'zoom'] = 'fade'
     # Old JSON/API projects retain manual behavior; the UI starts new projects in auto.
     sound_mode: Literal['auto', 'manual', 'off'] = 'manual'
     sounds_per_minute: float = Field(default=4, ge=0, le=12)

@@ -21,7 +21,7 @@ ROOT.mkdir(exist_ok=True)
 def fingerprint(project):
     data=project.model_dump(exclude={'name','version','resolution','auto_media_mode','auto_media_after_subtitles'})
     for scene in data['scenes']:scene.pop('media_reason',None)
-    return hashlib.sha256(('renderer-16:'+json.dumps(data,sort_keys=True,ensure_ascii=False,separators=(',',':'))).encode()).hexdigest()
+    return hashlib.sha256(('renderer-18:'+json.dumps(data,sort_keys=True,ensure_ascii=False,separators=(',',':'))).encode()).hexdigest()
 
 
 class PlaybackBusy(ValueError):pass

@@ -119,7 +119,7 @@ class WorkflowTest(unittest.TestCase):
         response = self.client.post('/api/assets', files={'file': ('fake.mp4', b'not a video', 'video/mp4')})
         self.assertEqual(response.status_code, 400)
 
-    def test_five_transitions_keep_timing_and_add_localized_sound(self):
+    def test_five_transitions_keep_timing_and_stay_silent_without_title_sounds(self):
         folder = Path(test_data.name)/'effects'
         folder.mkdir()
         project = Project(scenes=[Scene(duration=1, title='Сцена', motion_style=m) for m in
@@ -130,11 +130,8 @@ class WorkflowTest(unittest.TestCase):
         info = probe(result)
         self.assertEqual(int(next(s for s in info['streams'] if s['codec_type']=='video')['nb_frames']),180)
         self.assertAlmostEqual(float(info['format']['duration']),6,delta=.05)
-        pcm = subprocess.run(['ffmpeg','-v','error','-i',str(result),'-vn','-ac','1','-ar','8000','-f','s16le','-'],capture_output=True,check=True).stdout
-        samples = struct.unpack('<'+'h'*(len(pcm)//2),pcm)
-        rms = lambda chunk: math.sqrt(sum(x*x for x in chunk)/len(chunk))
-        self.assertLess(rms(samples[:4000]),1, 'Sound should not leak into opening silence')
-        self.assertGreater(rms(samples[8000:12000]),20, 'Transition sound is missing')
+        self.assertFalse(any(s['codec_type']=='audio' for s in info['streams']),
+                         'Without voice, music or text sounds, transitions must not create an audio track')
         frame = subprocess.run(['ffmpeg','-v','error','-ss','3.166667','-i',str(result),'-frames:v','1',
              '-threads','2','-f','image2pipe','-vcodec','png','-'],capture_output=True,check=True)
         screen = Image.open(io.BytesIO(frame.stdout)).convert('RGB')

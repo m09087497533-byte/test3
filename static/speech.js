@@ -17,6 +17,7 @@ async function stopSpeech() {
 function applyTranscript(data) {
   project.scenes = data.scenes; project.subtitles = data.subtitles;
   project.transition = 'cut'; project.photo_motion='static'; project.director_version=data.director_version;
+  project.effects_version=data.effects_version || 18;
   project.animate_titles=true; project.sound_mode='auto'; project.sounds_per_minute=4; project.sfx_volume=.28;
   selected=0; refresh();
 }

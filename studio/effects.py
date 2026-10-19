@@ -12,8 +12,25 @@ from .models import Project, frame_count, total_duration
 from .video_clock import normalize_clock, require_frames
 
 TRANSITIONS = {'dissolve': 'fade', 'slide': 'smoothleft', 'flash': 'fadewhite',
-               'blur': 'hblur', 'wipe': 'wipeleft'}
+               'blur': 'hblur', 'wipe': 'wipeleft', 'zoom': 'zoomin',
+               'light_leak': 'custom', 'color_wash': 'custom'}
 CYCLE = ('dissolve', 'slide', 'flash', 'blur', 'wipe')
+
+
+def transition_filter(style, seconds):
+    base = f'xfade=transition={TRANSITIONS[style]}:duration={seconds}:offset=0'
+    if style not in ('light_leak','color_wash'):
+        return base
+    # P runs from 1 (outgoing) to 0 (incoming). Colored light is confined to
+    # the transition; both endpoints retain the original picture and timing.
+    pulse = 'pow(sin(PI*P),2)'
+    if style == 'light_leak':
+        band = f'{pulse}*exp(-pow((X/W-(1-P))/.28,2))'
+        extra = f'if(eq(PLANE,0),115,if(eq(PLANE,1),-26,42))*{band}'
+    else:
+        band = f'{pulse}*sin(PI*X/W)'
+        extra = f'if(eq(PLANE,0),55,if(eq(PLANE,1),36,-30))*{band}'
+    return base + f":expr='clip(A*P+B*(1-P)+{extra},0,255)'"
 
 
 def boundary_style(project: Project, index: int) -> str:
@@ -127,7 +144,7 @@ def assemble(project: Project, pieces: list[Path], folder: Path, progress) -> Pa
             transition = folder / f'transition-{index:03d}.mp4'
             graph = (f'[0:v]trim=start_frame={frames}:end_frame={frames+outgoing},setpts=N/(30*TB),fps=30,settb=1/30[a];'
                      f'[1:v]trim=end_frame={outgoing},setpts=N/(30*TB),fps=30,settb=1/30[b];'
-                     f'[a][b]xfade=transition={TRANSITIONS[boundary_style(project,index)]}:duration={outgoing/30}:offset=0,'
+                     f'[a][b]{transition_filter(boundary_style(project,index),outgoing/30)},'
                      'format=yuv420p[out]')
             encode_segment(['-i', str(piece), '-i', str(pieces[index+1])], graph, outgoing, transition)
             segments.append(transition)
@@ -173,13 +190,14 @@ def synthesize_sfx(project: Project, output: Path) -> bool:
         file.truncate(44+data_bytes)
     for index,event in enumerate(plan):
         rng=random.Random(2100+index);style=event['style']
-        click=style=='click';impact=style in ('impact','flash')
+        click=style in ('click','paper');impact=style in ('impact','flash','stamp')
         # Automatic event time is the motion peak. Manual clicks retain their exact onset.
         lead=0 if click else .09 if impact else .22
         start=event['time']-lead
         length=.18 if click else .72 if impact else .62
         low=mid=other=0.0
         samples=array('f',[0.0])*(round(length*rate)*2)
+        begin=event.get('start',0);end=event.get('end',count/rate)
         for j in range(round(length*rate)):
             t=j/rate;u=t/length;noise=rng.uniform(-1,1)
             low+=.025*(noise-low)
@@ -191,12 +209,16 @@ def synthesize_sfx(project: Project, output: Path) -> bool:
                 env=math.exp(-t*85)*min(1,t/.0015)
                 flutter=sum(math.exp(-((t-c)/.007)**2)*v for c,v in ((.034,.18),(.071,.07)))
                 value=(noise-low)*(.25*env+.12*flutter)
+                if style=='paper':
+                    value=(mid-low)*.75*(math.exp(-t*24)+.35*math.exp(-((t-.06)/.022)**2))
                 width=.10
             elif impact:
                 after=max(0,t-lead);gate=min(1,max(0,(t-lead)/.006))
                 body=math.sin(2*math.pi*(72*after+1.5*(1-math.exp(-after*28))))
                 value=.28*body*math.exp(-after*14)*gate
                 value+=(mid-low)*.65*math.exp(-((t-lead)/.065)**2)
+                if style=='stamp':
+                    value=.13*math.sin(2*math.pi*135*after)*math.exp(-after*30)*gate+(noise-low)*.14*math.exp(-((t-lead)/.018)**2)
                 width=.12
             else:
                 # Air sweep with paper flutter, stereo width and a restrained landing.
@@ -204,6 +226,14 @@ def synthesize_sfx(project: Project, output: Path) -> bool:
                 flutter=.78+.22*math.sin(2*math.pi*(21*t+12*t*t))
                 value=(mid-low)*1.05*attack*flutter
                 value+=low*.18*math.exp(-((t-lead-.035)/.09)**2)
+                if style in ('chime','spark'):
+                    after=max(0,t-lead)
+                    gate=min(1,max(0,(t-lead)/.012))
+                    frequencies=(880,1320,1760) if style=='chime' else (1650,2475,3300)
+                    tone=sum(math.sin(2*math.pi*f*after)/(i+1) for i,f in enumerate(frequencies))
+                    value=tone*.08*math.exp(-after*15)*gate+(mid-low)*.20*attack
+                elif style=='sweep':
+                    value=(mid-low)*1.5*attack*(.65+.35*math.sin(2*math.pi*35*t))
                 width=.22*attack
             # Equal-power pan follows the lateral text/card motion; no hard channel jumps.
             pan=.45*math.tanh((t-lead)*7) if not click else 0
@@ -211,8 +241,10 @@ def synthesize_sfx(project: Project, output: Path) -> bool:
             side=other*width*(math.sin(math.pi*u)**2)
             edge=min(1,t/.003,(length-t)/.015)
             pos=round(start*rate)+j
-            if 0<=pos<count:
-                volume=project.sfx_volume*edge
+            # No pre-roll or tail may extend into time without a text entrance.
+            if 0<=pos<count and begin<=pos/rate<end:
+                window_edge=min(1,(pos/rate-begin)/.003,(end-pos/rate)/.012)
+                volume=project.sfx_volume*edge*max(0,window_edge)
                 samples[2*j]+=(value*left+side)*volume
                 samples[2*j+1]+=(value*right-side)*volume
         first=max(0,round(start*rate));last=min(count,round(start*rate)+len(samples)//2)

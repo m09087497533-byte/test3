@@ -6,6 +6,7 @@ let project, assets = [], selected = 0, previewUrl, previewTimer, previewVersion
 const storageKey = 'kadr-project-v16';
 const jobStorage = 'kadr-job-v16';
 const rhythmStorage = 'kadr-before-rhythm-v16';
+const effectsStorage='kadr-before-effects-v18';
 const seconds = (n) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(Math.floor(n % 60)).padStart(2, '0')}`;
 const duration = () => project.scenes.reduce((sum, s) => sum + Math.round(s.duration * 30) / 30, 0);
 const sceneStart = (index) => project.scenes.slice(0, index).reduce((sum, s) => sum + Math.round(s.duration * 30) / 30, 0);
@@ -107,7 +108,7 @@ function paintInspector() {
   $('#sounds-per-minute').value = project.sounds_per_minute ?? 4;
   const manual = project.sound_mode === 'manual';
   $('#manual-title-sound').classList.toggle('hidden', !manual);
-  $('#transition-sounds').closest('label').classList.toggle('hidden', !manual);
+  $('#transition-sounds').closest('label').classList.add('hidden');
   $('#auto-sound-rate').classList.toggle('hidden', project.sound_mode !== 'auto');
   $('#transition-sounds').checked = !!project.transition_sounds;
   $('#animate-titles').checked = !!project.animate_titles;
@@ -116,6 +117,7 @@ function paintInspector() {
   $('#resolution').value = project.resolution;
   $('#show-subtitles').checked = project.show_subtitles !== false;
   $('#photo-motion').value = project.photo_motion || 'static';
+  $('#undo-effects').classList.toggle('hidden',!localStorage.getItem(effectsStorage));
   $('#undo-rhythm').classList.toggle('hidden',!localStorage.getItem(rhythmStorage));
   $$('[data-template]').forEach(b => { b.classList.toggle('active', b.dataset.template === s.template); b.setAttribute('aria-pressed', String(b.dataset.template === s.template)); });
   $('#clear-asset').classList.toggle('hidden', !s.asset_id);
@@ -308,7 +310,7 @@ on('#new-project', 'click', async () => {
   if (project) localStorage.setItem('kadr-previous-project', JSON.stringify(project));
   project = await (await api('/api/project/new')).json(); selected = 0;
   localStorage.removeItem(jobStorage); localStorage.removeItem(playbackStorage);
-  localStorage.removeItem(rhythmStorage); localStorage.removeItem(autoMediaStorage);
+  localStorage.removeItem(rhythmStorage); localStorage.removeItem(effectsStorage); localStorage.removeItem(autoMediaStorage);
   autoMediaTask=null;
   playback.record=null; playback.ready=false; playback.busy=false;
   polling=false;
@@ -334,7 +336,9 @@ on('#file-project', 'change', async e => {
   const valid = await (await api('/api/project/validate', jsonPost(value))).json();
   if (!confirm('Заменить текущий монтаж открываемым проектом?')) return;
   await stopSpeech();
-  project = valid; selected = 0; refresh(); toast('Проект открыт');
+  project = valid; selected = 0;
+  if((project.effects_version||0)<18)await applyReferenceLook();
+  refresh(); toast('Проект открыт');
 });
 on('#close-export', 'click', () => $('#export-dialog').close());
 async function pollJob(id) {
@@ -425,6 +429,7 @@ async function init() {
     if(oldExport){localStorage.setItem('kadr-previous-export',oldExport);localStorage.removeItem(jobStorage);}
     } catch(e) {toast('Не удалось автоматически обновить монтаж: '+e.message,true);}
   }
+  if((project.effects_version||0)<18)await applyReferenceLook().catch(e=>toast(e.message,true));
   if(project.subtitles.length && project.director_version>=9 && project.scenes.some(s=>!s.asset_id && !['quote','thesis'].includes(s.template)))directorNeedsMedia=true;
   project.sound_mode ??= 'auto';
   project.sounds_per_minute ??= 4;
@@ -457,7 +462,7 @@ function refreshSoundPlan() {
     try {
       const plan = await (await api('/api/sound-plan', jsonPost(project))).json();
       if (version !== soundPlanVersion) return;
-      $('#sound-plan').textContent = `${plan.count} звуковых акцентов в ролике${plan.count ? ': ' + plan.events.map(e => seconds(e.time)).join(', ') : ''}. Остальные моменты — без эффектов.`;
+      $('#sound-plan').textContent = `${plan.count} звуковых акцентов в ролике${plan.count ? ': ' + plan.events.map(e => seconds(e.time)+' · '+({paper:'шелест бумаги',sweep:'пролёт',chime:'мягкий звон',stamp:'штамп',spark:'искристый блик',click:'щелчок',impact:'мягкий удар',swish:'воздушный взмах'}[e.style]||e.style)).join(', ') : ''}. Остальные моменты — без эффектов.`;
     } catch { if (version === soundPlanVersion) $('#sound-plan').textContent = 'План звуков обновится после исправления таймингов.'; }
   }, 200);
 }
@@ -913,4 +918,20 @@ $('#voice-info audio').addEventListener('play',()=>{$('#montage-player').pause()
 on('#copy-playback-error','click',async()=>{
   try {await navigator.clipboard.writeText($('#playback-error').textContent);toast('Отчёт скопирован. Его можно прислать в чат.');}
   catch {toast('Нажми «Скачать отчёт» или выдели текст отчёта и скопируй его.',true);}
+});
+
+async function applyReferenceLook() {
+  const owner=project,snapshot=JSON.stringify(project);
+  const revised=await (await api('/api/project/reference-effects',jsonPost(project))).json();
+  if(project!==owner || JSON.stringify(project)!==snapshot)throw new Error('Проект изменился. Примени оформление ещё раз.');
+  localStorage.setItem(effectsStorage,snapshot);project=revised;
+}
+on('#reference-effects','click',async()=>{
+  if(autoMediaTask || speechRecord)throw new Error('Сначала дождись распознавания и подбора или останови их.');
+  await applyReferenceLook();refresh();toast('Приёмы применены. Звуки — только при появлении текста. Обнови просмотр или экспорт.');
+});
+on('#undo-effects','click',()=>{
+  if(autoMediaTask || speechRecord)throw new Error('Сначала останови текущую задачу.');
+  const saved=localStorage.getItem(effectsStorage);if(!saved)return;
+  project=JSON.parse(saved);project.effects_version=18;selected=0;localStorage.removeItem(effectsStorage);refresh();
 });
