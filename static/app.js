@@ -42,6 +42,7 @@ function save() {
   try { localStorage.setItem(storageKey, JSON.stringify(project)); $('#save-state').textContent = 'Сохранено в браузере'; }
   catch { $('#save-state').textContent = 'Скачай проект для сохранения'; }
   updatePlaybackState();
+  scheduleMaterialCheck();
   paintWorkflow();
 }
 function refresh() {
@@ -381,7 +382,7 @@ async function pollJob(id) {
 on('#export', 'click', async () => {
   const oldId = localStorage.getItem(jobStorage);
   if (oldId) { $('#export-dialog').showModal(); await pollJob(oldId); return; }
-  if(!canRenderWorkflow())return;
+  if(!await canRenderWorkflow())return;
   const missing = project.scenes.filter(s => !s.asset_id && !['quote','thesis'].includes(s.template)).length;
   const voice = media(project.voice_id);
   const warnings = [];
@@ -735,7 +736,9 @@ async function startAutomaticMedia(replace, sceneIndices=null, excludedAssetIds=
   project.workflow_media_pending=false;save();
   const old=localStorage.getItem(autoMediaStorage);
   if(old) {await resumeAutomaticMedia();return;}
-  if(!project.scenes.some((s,i)=>(sceneIndices===null || sceneIndices.includes(i)) && (!['quote','thesis'].includes(s.template) || s.automatic_text) && (replace || !s.asset_id))) {
+  await ensureMaterialCheck(true);
+  const missing=new Set(missingVisuals().map(({i})=>i));
+  if(!project.scenes.some((s,i)=>(sceneIndices===null || sceneIndices.includes(i)) && (!['quote','thesis'].includes(s.template) || s.automatic_text) && (replace || !s.asset_id || missing.has(i)))) {
     $('#arrangement-status').textContent='Все сцены уже заполнены. Для нового подбора включи «Заменять назначенные материалы».';return;
   }
   const owner=project,targets=[...project.scenes];
@@ -908,8 +911,9 @@ async function pollPlayback(record) {
   }
 }
 async function watchMontage(time=null,selection=null) {
-  if(selection===null){if(!canRenderWorkflow())return;}
+  if(selection===null){if(!await canRenderWorkflow())return;}
   else {
+    await ensureMaterialCheck(true);
     if(!selection.length)throw new Error('Пока нет сцен с готовыми кадрами. Запусти подбор или добавь свои.');
     if(selection.some(i=>!readySceneIndices().includes(i)))throw new Error('Для выбранной сцены ещё нужен кадр.');
     if(autoMediaTask || speechRecord)throw new Error('Дождись завершения распознавания и подбора.');

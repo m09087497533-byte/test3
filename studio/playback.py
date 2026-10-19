@@ -21,7 +21,7 @@ ROOT.mkdir(exist_ok=True)
 def fingerprint(project):
     data=project.model_dump(exclude={'name','version','resolution','auto_media_mode','auto_media_after_subtitles','workflow_step','workflow_media_pending'})
     for scene in data['scenes']:scene.pop('media_reason',None)
-    return hashlib.sha256(('renderer-21:'+json.dumps(data,sort_keys=True,ensure_ascii=False,separators=(',',':'))).encode()).hexdigest()
+    return hashlib.sha256(('renderer-22:'+json.dumps(data,sort_keys=True,ensure_ascii=False,separators=(',',':'))).encode()).hexdigest()
 
 
 class PlaybackBusy(ValueError):pass
@@ -49,11 +49,20 @@ class PlaybackJobs:
         digest=fingerprint(project)
         segments=None;events=None;original=project
         if selection:
+            from .readiness import project_readiness,readiness_message
+            report=project_readiness(project)
+            ready={r['scene_index'] for r in report['scenes'] if r['ready']}
+            if scene_indices is None:scene_indices=sorted(ready)
+            if report['audio_issues'] or any(i not in ready for i in scene_indices):
+                raise ValueError(readiness_message(report))
             from .preview_selection import select_preview
             project,segments,events=select_preview(project,scene_indices)
             from .render import validate_assets
             validate_assets(project)
             digest=hashlib.sha256((digest+':selection:'+json.dumps([s['scene_index'] for s in segments])).encode()).hexdigest()
+        elif project.director_version>=12:
+            from .readiness import require_ready
+            require_ready(project)
         with self.lock:
             for identifier,state in self.states.items():
                 if state['fingerprint']==digest and (state['status'] in ('queued','running') or

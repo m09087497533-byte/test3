@@ -248,20 +248,26 @@ def preview(scene: Scene, size=(960, 540)) -> Image.Image:
 
 
 def validate_assets(project: Project):
-    for scene in project.scenes:
+    from .readiness import material_problem
+    checked={}
+    for index,scene in enumerate(project.scenes):
         if scene.asset_id:
-            meta = asset_info(scene.asset_id)
-            if meta['kind'] not in ('image', 'video'):
-                raise ValueError('Для сцены нужно изображение или видео')
+            if scene.asset_id not in checked:checked[scene.asset_id]=material_problem(scene.asset_id)
+            meta,reason=checked[scene.asset_id]
+            if reason:raise ValueError(f'Сцена {index+1}: {reason}')
             if meta['kind'] == 'video' and scene.offset >= meta['duration']:
                 raise ValueError('Начало фрагмента выходит за пределы видео')
     for identifier in (project.voice_id, project.music_id):
-        if identifier and not asset_info(identifier).get('has_audio'):
-            raise ValueError('Выбранный файл не содержит звуковую дорожку')
+        if identifier:
+            _,reason=material_problem(identifier,audio=True)
+            if reason:raise ValueError(reason)
 
 
 def render(project: Project, folder: Path, progress, *, draft=False, audio_ranges=None, sound_events=None):
     validate_assets(project)
+    if audio_ranges is None and project.director_version>=12:
+        from .readiness import require_ready
+        require_ready(project)
     from .visual_fallback import complete_visuals
     if audio_ranges is None:project=complete_visuals(project)
     (folder / 'sources.txt').write_text(source_credits(project), encoding='utf-8')

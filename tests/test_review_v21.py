@@ -102,7 +102,7 @@ class PartialPreviewTests(unittest.TestCase):
             root=Path(tmp);assets=root/'assets';assets.mkdir();manager=PlaybackJobs(root/'playbacks')
             for identifier,color in [('a'*32,'#768b76'),('b'*32,'#aa9977')]:
                 folder=assets/identifier;folder.mkdir();Image.new('RGB',(320,180),color).save(folder/'image.png')
-                (folder/'meta.json').write_text(json.dumps(dict(id=identifier,kind='image',file='image.png',name='Test frame')))
+                (folder/'meta.json').write_text(json.dumps(dict(id=identifier,kind='image',file='image.png',name='Archival document')))
             voice_folder=assets/('c'*32);voice_folder.mkdir()
             with wave.open(str(voice_folder/'voice.wav'),'wb') as f:
                 f.setparams((1,2,8000,0,'NONE','not compressed'))
@@ -111,7 +111,11 @@ class PartialPreviewTests(unittest.TestCase):
             project=self.project();project.voice_id='c'*32;project.sound_mode='off';project.show_subtitles=False
             project.director_version=12
             for scene in project.scenes:
-                if scene.asset_id:scene.media_reason='Фото · старое автоматическое назначение'
+                if scene.asset_id:
+                    # Readiness now checks partial and full playback equally.
+                    # Keep these audio fixtures relevant to their saved query.
+                    scene.media_reason='Фото · старое автоматическое назначение'
+                    scene.media_query='archival document'
             before=project.model_dump()
             try:
                 with patch('studio.media.ASSETS',assets):

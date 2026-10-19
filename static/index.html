@@ -4,8 +4,8 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Кадр — видеомастерская</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/style.css?v=21">
-  <link rel="stylesheet" href="/static/workflow.css?v=21">
+  <link rel="stylesheet" href="/static/style.css?v=22">
+  <link rel="stylesheet" href="/static/workflow.css?v=22">
 </head>
 <body>
 <noscript><p style="padding:24px;background:#f4dfb0;color:#252b25">Для работы мастерской включи JavaScript и запусти приложение командой python3 run.py. Просмотр HTML-файла внутри чата не запускает сервер монтажа.</p></noscript>
@@ -59,7 +59,7 @@
       <p id="arrangement-status" class="arrangement-status" role="status">При переходе на этот шаг подбор запустится автоматически. Можно добавить свои кадры.</p>
       <details id="arrangement-report" class="hidden"><summary>Результат по сценам</summary><div id="arrangement-results"></div><div id="arrangement-errors" class="mini-note"></div></details>
     </section>
-    <div class="material-toolbar"><p id="workflow-material-status" role="status"></p><div class="material-actions"><button id="review-frames" class="secondary">Просмотреть кадры</button><button data-watch-available class="primary">▶ Найденные сцены</button><button id="retry-missing" class="text-button">Найти недостающие кадры</button><button id="connect-sources" class="text-button">Подключить Pexels / Pixabay</button></div></div>
+    <div class="material-toolbar"><p id="workflow-material-status" role="status"></p><div class="material-actions"><button id="check-materials" class="secondary">Проверить материалы</button><button id="review-frames" class="secondary">Просмотреть кадры</button><button data-watch-available class="primary">▶ Найденные сцены</button><button id="retry-missing" class="text-button">Найти недостающие кадры</button><button id="connect-sources" class="text-button">Подключить Pexels / Pixabay</button></div></div>
     <div class="timeline-heading"><div><span class="eyebrow">ПЛАН ФИЛЬМА</span><h2>Сцены твоей истории <span id="total-time"></span></h2></div><button id="add-scene" class="secondary">＋ Сцена</button></div>
     <div id="timeline" class="timeline" aria-label="Сцены проекта"></div>
     <div class="timeline-footer"><span id="scene-count"></span><span>Нажми на сцену, чтобы заменить кадр или текст</span></div>
@@ -176,9 +176,10 @@
 <input id="file-visual" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" multiple hidden>
 <input id="file-project" type="file" accept=".json" hidden>
   <dialog id="transcript-dialog"><h2>Исправить фразы</h2><p>Таймкоды и озвучка сохранятся. Текстовые акценты обновятся. Назначенные кадры останутся; для их замены запустите подбор.</p><div id="transcript-fields"></div><button id="transcript-apply" class="primary">Сохранить исправления</button><button id="transcript-close" class="secondary">Отмена</button></dialog>
-  <script src="/static/speech.js?v=21" defer></script>
-  <script src="/static/workflow.js?v=21" defer></script>
-  <script src="/static/review.js?v=21" defer></script>
-  <script src="/static/app.js?v=21" defer></script>
+  <script src="/static/speech.js?v=22" defer></script>
+  <script src="/static/readiness.js?v=22" defer></script>
+  <script src="/static/workflow.js?v=22" defer></script>
+  <script src="/static/review.js?v=22" defer></script>
+  <script src="/static/app.js?v=22" defer></script>
 </body>
 </html>

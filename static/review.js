@@ -5,7 +5,7 @@ function readySceneIndices(){const missing=new Set(missingVisuals().map(({i})=>i
 
 function paintReviewControls(){
   if(!project)return;
-  const ready=readySceneIndices(),busy=!!autoMediaTask || !!speechRecord;
+  const ready=readySceneIndices(),busy=!!autoMediaTask || !!speechRecord || !checkedMaterials();
   $$('[data-watch-available]').forEach(button=>{
     button.disabled=!ready.length || busy || playback.busy;
     button.textContent=`▶ Смотреть найденные сцены (${ready.length})`;
@@ -28,11 +28,11 @@ function paintFrames(){
     if(framesFilter==='ready' && !found || framesFilter==='missing' && found)return;
     const card=document.createElement('article');card.className='frame-review-card';card.dataset.sceneIndex=index;
     const art=document.createElement('div');art.className='frame-review-art';
-    if(scene.asset_id){const img=document.createElement('img');img.src=`/api/assets/${scene.asset_id}/thumb`;img.alt=`Кадр сцены ${index+1}`;img.loading='lazy';art.append(img);}
+    if(scene.asset_id && found){const img=document.createElement('img');img.src=`/api/assets/${scene.asset_id}/thumb`;img.alt=`Кадр сцены ${index+1}`;img.loading='lazy';art.append(img);}
     else{art.textContent=found?(scene.title || 'Текстовая композиция'):'Кадр ещё не найден';art.classList.add(found?'graphic':'empty');}
     const heading=document.createElement('h3');heading.textContent=`Сцена ${index+1} · ${seconds(sceneStart(index))}–${seconds(sceneStart(index)+scene.duration)}`;
     const caption=document.createElement('p');caption.textContent=sceneText(index) || scene.title || scene.caption || 'Без текста';
-    const source=document.createElement('small');source.textContent=scene.asset_id?(media(scene.asset_id)?.name || 'Назначенный материал'):found?'Графика из текста':'Нужен кадр';
+    const source=document.createElement('small');source.textContent=sceneReadinessReason(index) || (scene.asset_id?(media(scene.asset_id)?.name || 'Назначенный материал'):found?'Графика из текста':'Нужен кадр');
     const actions=document.createElement('div');actions.className='frame-review-actions';
     function action(label,cls,fn){const b=document.createElement('button');b.textContent=label;b.className=cls;b.addEventListener('click',()=>Promise.resolve().then(fn).catch(e=>toast(e.message,true)));actions.append(b);return b;}
     if(found)action('▶ Смотреть сцену','primary',async()=>{$('#frames-dialog').close();selected=index;await watchMontage(0,[index]);});
@@ -47,7 +47,7 @@ function paintFrames(){
   });
   if(!$('#frames-grid').children.length){const empty=document.createElement('p');empty.className='empty-step';empty.textContent=framesFilter==='missing'?'Для всех сцен уже есть кадры.':'Найденных кадров пока нет. Переключись на «Без кадра» или запусти подбор.';$('#frames-grid').append(empty);}
 }
-function openFrames(){framesFilter=readySceneIndices().length?'ready':'missing';paintFrames();$('#frames-dialog').showModal();}
+async function openFrames(){await ensureMaterialCheck(true);framesFilter=readySceneIndices().length?'ready':'missing';paintFrames();$('#frames-dialog').showModal();}
 async function applyColorTransitions(){
   const owner=project,before=JSON.stringify(project);
   const revised=await (await api('/api/project/color-transitions',jsonPost(project))).json();
@@ -61,7 +61,8 @@ function initReview(){
   $$('[data-watch-available]').forEach(button=>button.addEventListener('click',()=>{
     $('#frames-dialog').close();watchMontage(null,readySceneIndices()).catch(e=>toast(e.message,true));
   }));
-  on('#retry-missing','click',()=>startAutomaticMedia(false,missingVisuals().map(({i})=>i)));
+  on('#retry-missing','click',async()=>{await ensureMaterialCheck(true);await startAutomaticMedia(false,missingVisuals().map(({i})=>i));});
+  on('#check-materials','click',async()=>{await ensureMaterialCheck(true);toast('Проверка материалов завершена. Причины по сценам — в «Просмотреть кадры».');});
   on('#apply-color-transitions','click',async()=>{
     if(autoMediaTask || speechRecord)throw new Error('Дождись завершения текущей задачи.');
     await applyColorTransitions();refresh();toast('Цветные засветки и переливы обновлены. Пересобери просмотр, чтобы увидеть их.');

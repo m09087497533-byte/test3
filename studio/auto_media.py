@@ -183,12 +183,13 @@ def asset_identity(asset):
 
 
 def local_assets():
+    from .readiness import file_problem
     items=[]
     for path in sorted(ASSETS.glob('*/meta.json')):
         try:
             item=json.loads(path.read_text())
-            if item.get('kind') in ('image','video'):items.append(item)
-        except (OSError,ValueError):continue
+            if item.get('kind') in ('image','video') and not file_problem(path.parent/item['file'],item['kind']):items.append(item)
+        except (OSError,ValueError,KeyError,TypeError):continue
     return items
 
 
@@ -212,6 +213,10 @@ def arrange(project, mode, replace, update, cancelled, scene_indices=None, exclu
     excluded=set(excluded_asset_ids or [])
     excluded.update(asset_identity(a) for a in library if a['id'] in excluded)
     targets=set(scene_indices) if scene_indices is not None else set(range(len(project.scenes)))
+    repair=set()
+    if project.director_version>=12 and not replace:
+        from .readiness import project_readiness
+        repair={r['scene_index'] for r in project_readiness(project)['scenes'] if not r['ready']}
     used={asset_identity(a) for a in library if any(s.asset_id==a['id'] and (i not in targets or not replace)
                                                     for i,s in enumerate(project.scenes))}
     available=[p for p in ('pexels','pixabay') if stock_video.get_key(p)]
@@ -238,7 +243,7 @@ def arrange(project, mode, replace, update, cancelled, scene_indices=None, exclu
         if scene.template in ('quote','thesis') and not scene.automatic_text:
             outcomes.append({'scene_index':index,'status':'skipped','reason':'Текстовая сцена использует собственный фон.'})
             publish(len(outcomes),f'Сцена {index+1}: текстовый фон');continue
-        if scene.asset_id and not replace:
+        if scene.asset_id and not replace and index not in repair:
             outcomes.append({'scene_index':index,'status':'kept','reason':'Сохранён назначенный материал.'})
             publish(len(outcomes),f'Сцена {index+1}: материал сохранён');continue
         try:context=scene_context(project,index)
@@ -343,10 +348,13 @@ def arrange(project, mode, replace, update, cancelled, scene_indices=None, exclu
             previous=next((asset_identity(a['asset']) for a in reversed(imported) if a['scene_index']==index-1),None)
             if previous is None and index:
                 previous=next((asset_identity(a) for a in library if a['id']==project.scenes[index-1].asset_id),None)
+            following=None
+            if index+1<len(project.scenes) and (index+1 not in targets or not replace and index+1 not in repair):
+                following=next((asset_identity(a) for a in library if a['id']==project.scenes[index+1].asset_id),None)
             for kind in kinds:
                 for variant in search_contexts(context,kind):
                     reusable=[a for a in library if a['kind']==kind and a['id'] not in excluded and
-                              asset_identity(a) not in excluded and asset_identity(a)!=previous and
+                              asset_identity(a) not in excluded and asset_identity(a) not in (previous,following) and
                               usage.get(asset_identity(a),0)<2 and
                               relevant_candidate(a,variant,local=True)]
                     if reusable:

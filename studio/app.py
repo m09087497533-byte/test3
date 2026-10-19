@@ -20,6 +20,7 @@ from .render import preview, render, validate_assets
 from .director import automatic_project
 from .reference_effects import apply_reference_effects
 from .subtitles import parse_subtitles, plan_scenes, apply_reference_rhythm
+from .readiness import project_readiness,require_ready
 
 app = FastAPI(title='Кадр — видеомастерская', docs_url='/api/docs')
 app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
@@ -48,7 +49,7 @@ def index():
 
 @app.get('/api/health')
 def health():
-    return {'ok': bool(shutil.which('ffmpeg') and shutil.which('ffprobe')), 'version': '0.21'}
+    return {'ok': bool(shutil.which('ffmpeg') and shutil.which('ffprobe')), 'version': '0.22'}
 
 
 from . import transcription
@@ -125,7 +126,11 @@ def edit_transcript(request: TranscriptEditRequest):
 def assets():
     result = []
     for path in sorted(ASSETS.glob('*/meta.json')):
-        result.append(json.loads(path.read_text()))
+        try:
+            meta=json.loads(path.read_text())
+            meta['available']=(path.parent/meta['file']).is_file()
+            result.append(meta)
+        except (OSError,ValueError,KeyError,TypeError):continue
     return result
 
 
@@ -275,11 +280,13 @@ def scene_preview(scene: Scene):
 
 @app.post('/api/project/validate')
 def validate(project: Project):
-    try:
-        validate_assets(project)
-        return project.model_dump()
-    except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
+    # Missing assets must not prevent opening a project to repair it.
+    return project.model_dump()
+
+
+@app.post('/api/project/readiness')
+def readiness(project: Project):
+    return project_readiness(project)
 
 
 def perform_job(identifier: str, project: Project):
@@ -299,13 +306,17 @@ def perform_job(identifier: str, project: Project):
         logger.exception('Render failed: %s', identifier)
         if isinstance(exc, subprocess.CalledProcessError):
             logger.error('Encoder stderr: %s', exc.stderr[-4000:])
-        update(0, 'Не удалось собрать ролик. Проверьте материалы; подробности — в журнале сервера.', 'error')
+        from .render_diagnostics import failure_report,save_failure
+        report=failure_report(exc,jobs[identifier]['message'],jobs[identifier]['progress'])
+        save_failure(folder,report)
+        update(report['progress'],report['message'],'error')
 
 
 @app.post('/api/render', status_code=202)
 def start_render(project: Project):
     try:
         validate_assets(project)
+        if project.director_version>=12:require_ready(project)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     with job_lock:

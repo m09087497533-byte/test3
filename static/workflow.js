@@ -11,7 +11,9 @@ function hasMontageContent() {
   return !!project?.subtitles.length || project?.scenes.some(s=>s.asset_id || s.title?.trim() || s.caption?.trim());
 }
 function missingVisuals() {
-  return project.scenes.map((s,i)=>({s,i})).filter(({s})=>!s.asset_id &&
+  const report=checkedMaterials();
+  if(report)return report.scenes.filter(row=>!row.ready).map(row=>({s:project.scenes[row.scene_index],i:row.scene_index,reason:row.reason}));
+  return project.scenes.map((s,i)=>({s,i})).filter(({s})=>s.asset_id?(!media(s.asset_id) || media(s.asset_id).available===false):
     (!['quote','thesis'].includes(s.template) || !(s.title?.trim() || s.caption?.trim() || s.text_events?.length) ||
      (s.automatic_text && s.text_events?.length && s.text_events.reduce((sum,e)=>sum+e.end-e.start,0)<s.duration-.25)));
 }
@@ -25,7 +27,7 @@ function paintWorkflow() {
     const n=Number(button.dataset.step);
     if(n===step)button.setAttribute('aria-current','step');else button.removeAttribute('aria-current');
     button.disabled=n>=3 && (!hasContent || !!speechRecord || (n===4 && !!autoMediaTask));
-    const done=n===1?!!project.voice_id || hasText:n===2?hasText:n===3?hasContent && !missing.length && !busy:false;
+    const done=n===1?!!project.voice_id || hasText:n===2?hasText:n===3?hasContent && checkedMaterials()?.can_render && !busy:false;
     button.querySelector('.step-check').textContent=done?'✓':'';
   });
   $('#workflow-counter').textContent=`ШАГ ${step} ИЗ 4`;
@@ -40,8 +42,15 @@ function paintWorkflow() {
   $('#transcript-empty').hidden=hasText;
   $('#transcript').hidden=!hasText;
   $('#workflow-material-status').textContent=hasContent?`${project.scenes.length-missing.length} из ${project.scenes.length} сцен готовы${missing.length?` · нужны кадры: ${missing.map(({i})=>i+1).join(', ')}`:' · можно переходить к просмотру'}.`:'Сначала добавь текст рассказа.';
+  const report=checkedMaterials();
+  if(hasContent && !report)$('#workflow-material-status').textContent=materialCheck.error?'Не удалось проверить материалы. Нажми «Проверить материалы».':'Проверяем файлы и назначения сцен…';
+  if(report?.audio_issues.length){
+    $('#workflow-material-status').textContent=`${report.ready_count} из ${report.total} сцен с готовым кадром. ${report.audio_issues.join(' ')}`;
+    $('#workflow-hint').textContent='Для просмотра восстанови недоступную озвучку или музыку.';
+  }
   $('#workflow-missing').hidden=!missing.length;
-  $('#workflow-missing-detail').textContent=`Сцены ${missing.map(({i})=>i+1).join(', ')}. Повтори подбор или добавь свои фото и видео на шаге «Монтаж».`;
+  $('#workflow-missing-detail').textContent=missing.slice(0,6).map(({i,reason})=>`Сцена ${i+1}: ${reason || 'нужен кадр'}`).join(' ') + (missing.length>6?` Ещё ${missing.length-6} сцен — в «Просмотреть кадры» → «Без кадра».`:'');
+  if(hasContent && !report)$('#workflow-hint').textContent='Проверяем материалы перед просмотром.';
   $('#workflow-review-summary').textContent=`${seconds(duration())} · ${project.scenes.length} сцен · ${project.voice_id?'с твоей озвучкой':'озвучка не добавлена'}`;
   // One canvas/player, moved between editing and review without duplicate IDs.
   const target=step===3?$('#edit-stage'):$('#review-stage'),stage=$('.stage-shell');
@@ -95,10 +104,12 @@ function initWorkflow() {
   workflowInitialized=true;paintWorkflow();save();
 }
 
-function canRenderWorkflow() {
+async function canRenderWorkflow() {
   if(!hasMontageContent()){toast('Сначала создай монтаж на первых трёх шагах.',true);return false;}
   if(speechRecord){toast('Дождись распознавания речи.',true);return false;}
   if(autoMediaTask){toast('Дождись окончания подбора материалов.',true);return false;}
+  const report=await ensureMaterialCheck(true);
+  if(report.audio_issues.length){toast(report.audio_issues.join(' '),true);return false;}
   const missing=missingVisuals();
   if(missing.length){
     enterWorkflowStep(3,{auto:false});

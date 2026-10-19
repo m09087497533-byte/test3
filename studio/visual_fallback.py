@@ -37,6 +37,27 @@ def text_scene(project, index):
     return Scene.model_validate(values)
 
 
+def assigned_problem(project, index, meta):
+    """The same saved-pick policy is used by readiness and the renderer.
+
+    A matching picture may recur later in a long film. The two-use budget is
+    for choosing fallback material, not for invalidating saved assignments.
+    """
+    scene=project.scenes[index]
+    if project.director_version<9 or not scene.media_reason.startswith(('Фото ·','Видео ·','Повтор подходящего материала')):
+        return ''
+    if index and scene.asset_id==project.scenes[index-1].asset_id:
+        return 'Тот же автоматический кадр стоит в соседней сцене. Найдите другой вариант.'
+    from .auto_media import scene_context,topic_words,relevant_candidate
+    context=scene_context(project,index)
+    if scene.media_query:
+        context['query']=scene.media_query
+        context['words']=topic_words(scene.media_query+' '+context['basis'])
+    if not relevant_candidate(meta,context,local=True):
+        return 'Описание автоматического кадра не подтверждает тему сцены. Повторите подбор.'
+    return ''
+
+
 def complete_visuals(project):
     """Offline last resort for saved v9 projects and interrupted media searches.
 
@@ -67,12 +88,10 @@ def complete_visuals(project):
         if scene.asset_id:
             # Revalidate previous automatic picks too; manual choices have no such reason.
             if not scene.media_reason.startswith(('Фото ·','Видео ·','Повтор подходящего материала')):continue
+            if project.director_version>=12 and scene.asset_id==previous:
+                raise ValueError(f'Для сцены {index+1} не найдено подходящее фото или видео без соседнего повтора. Повторите подбор для этой сцены.')
             from .media import asset_info
-            context=scene_context(result,index)
-            if scene.media_query:
-                context['query']=scene.media_query
-                context['words']=topic_words(scene.media_query+' '+context['basis'])
-            if scene.asset_id!=previous and relevant_candidate(asset_info(scene.asset_id),context,local=True) and usage.get(scene.asset_id,0)<2:
+            if not assigned_problem(result,index,asset_info(scene.asset_id)):
                 usage[scene.asset_id]=usage.get(scene.asset_id,0)+1
                 continue
             scene.asset_id=None;scene.offset=0;scene.media_query=''

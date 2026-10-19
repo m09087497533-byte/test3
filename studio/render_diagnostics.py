@@ -40,7 +40,8 @@ def failure_report(exc,stage,progress):
     detail=redact(raw);lower=detail.lower();features=capabilities()
     if isinstance(exc,FileNotFoundError):message='Не найден файл или инструмент FFmpeg. Проверьте установку и материалы.'
     elif 'ждёт фото или футаж' in lower or 'не найдено подходящее фото или видео' in lower:
-        message='Для одной или нескольких сцен нет фото или футажа. Повторите автоматический подбор после восстановления доступа к источникам.'
+        message=detail
+    elif isinstance(exc,ValueError) and re.search(r'Сцена?\s+\d+',detail):message=detail
     elif isinstance(exc,subprocess.TimeoutExpired):message='FFmpeg превысил время ожидания. Попробуйте более короткую сцену или другой футаж.'
     elif 'unknown encoder' in lower and 'libx264' in lower:message='В установленном FFmpeg нет кодировщика libx264, необходимого для H.264.'
     elif 'no such filter' in lower and 'ass' in lower:message='В FFmpeg нет фильтра субтитров ass (libass). Обновление программы использует резервный способ.'
