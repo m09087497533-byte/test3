@@ -25,7 +25,9 @@ def sound_plan(project: Project) -> list[dict]:
                         continue
                     style = scene.title_sound
                 else:
-                    style = ('spark' if event.treatment == 'neon' else
+                    style = ('paper' if event.tier=='caption' else
+                             'spark' if event.treatment == 'neon' else
+                             'impact' if event.treatment=='red_ink' else
                              'stamp' if event.treatment == 'chromatic' or event.effect == 'stamp' else
                              'paper' if event.treatment == 'italic' else
                              'chime' if event.effect == 'typewriter' else
@@ -56,6 +58,8 @@ def sound_plan(project: Project) -> list[dict]:
     # A finite budget, not independent random choices on every cut. Short clips may be silent.
     duration = total_duration(project)
     budget = int(math.floor(duration*project.sounds_per_minute/60+.5))
+    if project.effects_version>=19 and duration>=12:
+        budget=math.ceil(duration*project.sounds_per_minute/60)
     if not budget:
         return []
     gap = max(3.0, min(8.0, 30/max(1,project.sounds_per_minute)))

@@ -6,7 +6,7 @@ let project, assets = [], selected = 0, previewUrl, previewTimer, previewVersion
 const storageKey = 'kadr-project-v16';
 const jobStorage = 'kadr-job-v16';
 const rhythmStorage = 'kadr-before-rhythm-v16';
-const effectsStorage='kadr-before-effects-v18';
+const effectsStorage='kadr-before-effects-v19';
 const seconds = (n) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(Math.floor(n % 60)).padStart(2, '0')}`;
 const duration = () => project.scenes.reduce((sum, s) => sum + Math.round(s.duration * 30) / 30, 0);
 const sceneStart = (index) => project.scenes.slice(0, index).reduce((sum, s) => sum + Math.round(s.duration * 30) / 30, 0);
@@ -94,16 +94,17 @@ function paintInspector() {
   $('#scene-match').textContent = s.media_reason || '';
   $('#scene-match').classList.toggle('hidden', !s.media_reason);
   $('#scene-caption').value = s.caption;
+  $('#scene-edit-note').textContent=s.edit_reason || '';
   $('#scene-accents').textContent=(s.text_events||[]).length?'Автоматические появления: '+s.text_events.map(e=>seconds(sceneStart(selected)+e.start)+' · '+e.text).join(' / '):'';
   $('#scene-duration').value = Number(s.duration.toFixed(3));
   $('#scene-offset').value = s.offset;
   $('#scene-offset').disabled = media(s.asset_id)?.kind !== 'video';
   $('#scene-motion').checked = s.motion;
-  $('#scene-motion').disabled = s.template === 'quote' || media(s.asset_id)?.kind === 'video';
+  $('#scene-motion').disabled = s.template === 'quote' || (media(s.asset_id)?.kind === 'video' && (!s.camera_style || s.camera_style==='inherit'));
   $('#transition').value = project.transition;
   $('#scene-transition').value = s.transition_out || 'inherit';
-  $('#motion-style').value = s.motion_style || 'push';
-  $('#motion-style').disabled = !s.motion || s.template === 'quote' || media(s.asset_id)?.kind === 'video';
+  $('#motion-style').value = ['push','pull','left','right','detail','hold'].includes(s.camera_style)?s.camera_style:s.motion_style || 'push';
+  $('#motion-style').disabled = !s.motion || s.template === 'quote' || (media(s.asset_id)?.kind === 'video' && (!s.camera_style || s.camera_style==='inherit'));
   $('#sound-mode').value = project.sound_mode || 'auto';
   $('#sounds-per-minute').value = project.sounds_per_minute ?? 4;
   const manual = project.sound_mode === 'manual';
@@ -267,7 +268,7 @@ on('#scene-offset', 'change', e => {
   project.scenes[selected].offset = value; refresh();
 });
 on('#scene-motion', 'change', e => { project.scenes[selected].motion = e.target.checked; refresh(); });
-on('#motion-style', 'change', e => { project.scenes[selected].motion_style = e.target.value; save(); });
+on('#motion-style', 'change', e => { if(['push','pull','left','right'].includes(e.target.value))project.scenes[selected].motion_style=e.target.value;project.scenes[selected].camera_style=e.target.value; changed(); });
 on('#scene-transition', 'change', e => { project.scenes[selected].transition_out = e.target.value; save(); refreshSoundPlan(); });
 on('#animate-titles', 'change', e => { project.animate_titles = e.target.checked; save(); });
 on('#transition-sounds', 'change', e => { project.transition_sounds = e.target.checked; save(); refreshSoundPlan(); });
@@ -337,7 +338,7 @@ on('#file-project', 'change', async e => {
   if (!confirm('Заменить текущий монтаж открываемым проектом?')) return;
   await stopSpeech();
   project = valid; selected = 0;
-  if((project.effects_version||0)<18)await applyReferenceLook();
+  if((project.effects_version||0)<19)await applyReferenceLook();
   refresh(); toast('Проект открыт');
 });
 on('#close-export', 'click', () => $('#export-dialog').close());
@@ -429,7 +430,7 @@ async function init() {
     if(oldExport){localStorage.setItem('kadr-previous-export',oldExport);localStorage.removeItem(jobStorage);}
     } catch(e) {toast('Не удалось автоматически обновить монтаж: '+e.message,true);}
   }
-  if((project.effects_version||0)<18)await applyReferenceLook().catch(e=>toast(e.message,true));
+  if((project.effects_version||0)<19)await applyReferenceLook().catch(e=>toast(e.message,true));
   if(project.subtitles.length && project.director_version>=9 && project.scenes.some(s=>!s.asset_id && !['quote','thesis'].includes(s.template)))directorNeedsMedia=true;
   project.sound_mode ??= 'auto';
   project.sounds_per_minute ??= 4;
@@ -933,5 +934,5 @@ on('#reference-effects','click',async()=>{
 on('#undo-effects','click',()=>{
   if(autoMediaTask || speechRecord)throw new Error('Сначала останови текущую задачу.');
   const saved=localStorage.getItem(effectsStorage);if(!saved)return;
-  project=JSON.parse(saved);project.effects_version=18;selected=0;localStorage.removeItem(effectsStorage);refresh();
+  project=JSON.parse(saved);project.effects_version=19;selected=0;localStorage.removeItem(effectsStorage);refresh();
 });

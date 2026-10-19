@@ -52,7 +52,7 @@ def complete_visuals(project):
     for i,scene in enumerate(result.scenes):
         minutes[i]=int((cursor/30)//60)
         for event in scene.text_events:
-            if event.elapsed>0:continue
+            if event.elapsed>0 or event.tier=='caption':continue
             bucket=int((cursor/30+event.start)//60)
             minute_usage[bucket]=minute_usage.get(bucket,0)+1
         if scene.automatic_text and not scene.text_events:
@@ -60,6 +60,8 @@ def complete_visuals(project):
         cursor+=frame_count(scene)
     for index,scene in enumerate(result.scenes):
         previous=result.scenes[index-1].asset_id if index else None
+        if result.effects_version>=19 and scene.template in ('quote','thesis') and not scene.title.strip() and not scene.caption.strip() and not scene.text_events:
+            raise ValueError(f'Сцена {index+1}: пустая карточка. Добавьте материал или повторите автоматический подбор.')
         if not scene.asset_id and scene.media_reason.startswith('Ожидает визуал'):
             raise ValueError(f'Сцена {index+1} ждёт фото или футаж. Повторите автоматический подбор после восстановления доступа к источникам.')
         if scene.asset_id:
@@ -95,4 +97,8 @@ def complete_visuals(project):
                 raise ValueError(f'Для сцены {index+1} не найдено подходящее фото или видео. Повторите автоматический подбор после восстановления доступа к источникам.')
             result.scenes[index]=text_scene(result,index)
             minute_usage[minutes[index]]=minute_usage.get(minutes[index],0)+1
+    if result.effects_version>=19:
+        for index,scene in enumerate(result.scenes):
+            if scene.automatic_text and not scene.asset_id and scene.text_events and sum(e.end-e.start for e in scene.text_events)<scene.duration-.25:
+                raise ValueError(f'Сцена {index+1}: под короткой надписью нет кадра. Повторите подбор, чтобы не получить пустую карточку.')
     return result

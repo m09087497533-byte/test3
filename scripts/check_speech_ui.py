@@ -65,6 +65,7 @@ with tempfile.TemporaryDirectory(prefix='kadr-speech-ui-') as tmp:
                 state.update(status='done',progress=100,message='Речь распознана',result={k:directed[k] for k in ('scenes','subtitles','director_version')})
                 page.wait_for_function('project.subtitles.length===1 && !speechRecord')
                 assert page.evaluate('project.voice_id')==voice_id
+                assert page.evaluate('project.photo_motion')=='smooth','Import disabled the planned camera motion'
                 assert not media_requests,'Disabled automatic media search was ignored'
                 page.locator('#transcript').evaluate('(e)=>e.open=true')
                 page.locator('#edit-transcript').click()

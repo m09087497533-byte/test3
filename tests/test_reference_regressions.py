@@ -29,8 +29,9 @@ class ReferenceRegressionsTest(unittest.TestCase):
         cues=[Subtitle(start=0,end=3,text='перечисляет семь признаков его жизни'),Subtitle(start=3,end=6,text='результат был не'),Subtitle(start=6.1,end=7,text='наказанием.'),Subtitle(start=10,end=12,text='главу, стих за стихом.')]
         events=emphasis_events(cues)
         self.assertIn('7 ПРИЗНАКОВ',[e['text'] for e in events])
-        negative=next(e for e in events if e['text']=='НЕ НАКАЗАНИЕ')
-        self.assertGreater(negative['start'],3)
+        negative=next(e for e in events if e['text']=='РЕЗУЛЬТАТ БЫЛ НЕ НАКАЗАНИЕМ')
+        self.assertEqual(negative['start'],3)
+        self.assertEqual(negative['tier'],'caption')
         self.assertFalse(any(e['text'].endswith('НЕ') for e in events))
         p=Project(scenes=[Scene(duration=3),Scene(duration=4),Scene(duration=5)],subtitles=cues)
         self.assertNotEqual(scene_query(p,1)['concept'],'Суд и воздаяние')

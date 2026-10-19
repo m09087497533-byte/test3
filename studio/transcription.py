@@ -166,7 +166,7 @@ def recognize(path, model_name, language, duration, update, model_factory=None):
         raise ValueError('Речь не найдена. Проверьте озвучку или выберите другой язык.')
     directed = automatic_project(Project(scenes=plan_scenes(cues, duration), subtitles=cues))
     return dict(subtitles=[c.model_dump() for c in cues], scenes=[s.model_dump() for s in directed.scenes],
-                director_version=directed.director_version, effects_version=directed.effects_version, language=info.language)
+                director_version=directed.director_version, effects_version=directed.effects_version, photo_motion=directed.photo_motion, language=info.language)
 
 
 def main():

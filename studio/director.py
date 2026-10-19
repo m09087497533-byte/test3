@@ -12,15 +12,21 @@ def story_boundaries(cues, end, slots=MAX_SCENES):
     points=[0]
     while len(points)<slots:
         start=points[-1]
-        target=max(210, math.ceil((end-start)/(slots-len(points)+1)))
+        target=max(195, math.ceil((end-start)/(slots-len(points)+1)))
         if start==0:target=135
         if end-start<=target+60:break
         desired=start+target
         if end-desired<120:break
-        candidates=[round(c.start*30) for c in cues
-                    if start+120<=round(c.start*30)<=min(end-90,desired+45)
-                    and round(c.start*30)>=desired-45]
-        points.append(min(candidates,key=lambda f:abs(f-desired)) if candidates else desired)
+        candidates=[]
+        for i,cue in enumerate(cues):
+            frame=round(cue.start*30)
+            if not start+105<=frame<=min(end-90,desired+60) or frame<desired-60:continue
+            previous=cues[i-1] if i else None
+            sentence=bool(previous and previous.text.rstrip().endswith(('.', '!', '?', '…')))
+            gap=max(0,cue.start-previous.end) if previous else 0
+            score=abs(frame-desired)-25*sentence-min(30,gap*30)
+            candidates.append((score,frame))
+        points.append(min(candidates)[1] if candidates else desired)
     points.append(end)
     # A clear switch of named subject can justify a shorter shot; a fixed timer
     # alone cannot. Keep tiny passing mentions inside their surrounding block.
@@ -96,6 +102,7 @@ def automatic_project(project, *, rebuild=True):
         for event in events:
             if event['start']>=finish or event['end']<=start:continue
             local={key:value for key,value in event.items() if key!='priority'}
+            local['span']=event['end']-event['start']
             local['elapsed']=max(0,start-event['start'])
             local['start']=max(0,event['start']-start)
             local['end']=min(scene.duration,event['end']-start)

@@ -48,7 +48,7 @@ def index():
 
 @app.get('/api/health')
 def health():
-    return {'ok': bool(shutil.which('ffmpeg') and shutil.which('ffprobe')), 'version': '0.18'}
+    return {'ok': bool(shutil.which('ffmpeg') and shutil.which('ffprobe')), 'version': '0.19'}
 
 
 from . import transcription
@@ -113,7 +113,8 @@ def edit_transcript(request: TranscriptEditRequest):
         revised = automatic_project(updated, rebuild=False)
         for old, new in zip(updated.scenes, revised.scenes):
             for key in ('asset_id', 'offset', 'media_reason', 'media_query', 'motion', 'motion_style',
-                        'template', 'picture_effect', 'document_title', 'document_caption', 'transition_out'):
+                        'template', 'picture_effect', 'document_title', 'document_caption', 'transition_out',
+                        'camera_style','camera_amount','camera_beat','shot_role','transition_duration','edit_reason'):
                 setattr(new, key, getattr(old, key))
         return revised
     except ValueError as exc:
@@ -220,7 +221,7 @@ async def subtitles(file: UploadFile = File(...), voice_id: str = Form(default='
         duration = asset_info(voice_id)['duration'] if voice_id else 0
         scenes = plan_scenes(cues, duration)
         directed=automatic_project(Project(scenes=scenes,subtitles=cues))
-        return {'subtitles': [c.model_dump() for c in cues], 'scenes': [s.model_dump() for s in directed.scenes], 'director_version':12,'effects_version':18}
+        return {'subtitles': [c.model_dump() for c in cues], 'scenes': [s.model_dump() for s in directed.scenes], 'director_version':12,'effects_version':19,'photo_motion':directed.photo_motion}
     except (ValueError, ValidationError) as exc:
         raise HTTPException(400, str(exc)) from exc
     finally:
@@ -346,7 +347,7 @@ def new_project():
     return Project(name='Новая история', library_since=time.time(), scenes=[Scene(duration=4, motion=False)],
                    director_version=12, transition='cut', photo_motion='static',
                    sound_mode='auto', sounds_per_minute=4, sfx_volume=.28,
-                   animate_titles=True, show_subtitles=False, auto_music=True, semantic_media=True,effects_version=18).model_dump()
+                   animate_titles=True, show_subtitles=False, auto_music=True, semantic_media=True,effects_version=19).model_dump()
 
 
 from .image_search import scene_query, search_images, import_image

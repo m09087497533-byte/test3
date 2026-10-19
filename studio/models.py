@@ -9,11 +9,13 @@ class TextEvent(BaseModel):
     start: float = Field(ge=0,le=30)
     end: float = Field(gt=0,le=30)
     duration: float = Field(default=.45,ge=.033333,le=3)
-    effect: Literal['fade','scroll','perspective','reveal','stamp','typewriter'] = 'fade'
+    effect: Literal['fade','scroll','perspective','reveal','stamp','typewriter','marquee'] = 'fade'
     layout: Literal['center','number','grid','label','counter'] = 'center'
     decoration: Literal['none','ring','underline'] = 'none'
     elapsed: float = Field(default=0,ge=0,le=10)
-    treatment: Literal['classic','neon','chromatic','italic'] = 'classic'
+    treatment: Literal['classic','neon','chromatic','italic','red_ink','editorial'] = 'classic'
+    tier: Literal['major','caption'] = 'major'
+    span: float | None = Field(default=None,gt=0,le=30)
 
     @model_validator(mode='after')
     def ordered(self):
@@ -39,10 +41,16 @@ class Scene(BaseModel):
     title_end: float | None = Field(default=None, gt=0, le=30)
     motion: bool = True
     motion_style: Literal['push', 'pull', 'left', 'right'] = 'push'
+    shot_role: Literal['context','document','detail','graphic'] = 'context'
+    camera_style: Literal['inherit','hold','push','pull','left','right','detail'] = 'inherit'
+    camera_amount: float = Field(default=.07,ge=0,le=.18)
+    camera_beat: float | None = Field(default=None,ge=0,le=30)
+    edit_reason: str = Field(default='',max_length=240)
+    transition_duration: float = Field(default=.4,ge=.1,le=1)
     transition_out: Literal['inherit', 'cut', 'dissolve', 'slide', 'flash', 'blur', 'wipe', 'light_leak', 'color_wash', 'zoom'] = 'inherit'
 
 
-    title_effect: Literal['inherit', 'static', 'fade', 'rise', 'slide', 'scroll', 'perspective', 'reveal', 'stamp', 'typewriter'] = 'inherit'
+    title_effect: Literal['inherit', 'static', 'fade', 'rise', 'slide', 'scroll', 'perspective', 'reveal', 'stamp', 'typewriter', 'marquee'] = 'inherit'
     title_delay: float = Field(default=0, ge=0, le=29)
     title_duration: float = Field(default=.3, ge=.033333, le=3)
     title_decoration: Literal['none', 'ring', 'underline'] = 'none'
@@ -79,7 +87,7 @@ class Project(BaseModel):
     auto_media_mode: Literal['mixed', 'photos', 'videos'] = 'mixed'
     auto_media_after_subtitles: bool = True
     semantic_media: bool = False
-    effects_version: int = Field(default=0, ge=0, le=18)
+    effects_version: int = Field(default=0, ge=0, le=19)
     director_version: int = Field(default=0, ge=0, le=12)
     show_subtitles: bool = True
     photo_motion: Literal['static', 'smooth'] = 'static'

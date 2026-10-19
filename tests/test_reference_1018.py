@@ -14,7 +14,7 @@ class Reference1018Test(unittest.TestCase):
         cues=[Subtitle(start=0,end=5,text='Книга Еноха датируется 15 веком.'),Subtitle(start=5,end=9,text='В 1773 году нашли рукопись.'),Subtitle(start=10,end=14,text='В 1821 году издали книгу.')]
         p=automatic_project(Project(scenes=[Scene(duration=15)],subtitles=cues))
         events=[e for s in p.scenes for e in s.text_events if not e.elapsed]
-        self.assertEqual([e.treatment for e in events],['italic','neon'])
+        self.assertEqual([e.treatment for e in events],['italic','red_ink'])
         self.assertEqual(p.scenes[0].picture_effect,'split')
         self.assertEqual(p.scenes[0].document_title,'Книга Еноха')
         self.assertEqual(p.subtitles,cues)

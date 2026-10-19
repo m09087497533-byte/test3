@@ -30,7 +30,7 @@ class DirectorTest(unittest.TestCase):
         self.assertTrue(any(s.picture_effect=='inset' for s in directed.scenes))
         self.assertTrue(any(s.title_effect=='scroll' for s in directed.scenes))
         self.assertTrue(any(s.title_layout=='number' and s.title_decoration=='ring' for s in directed.scenes))
-        self.assertTrue(all(not s.motion for s in directed.scenes))
+        self.assertTrue(all(s.motion and s.camera_amount<=.10 for s in directed.scenes))
         start=0
         for scene in directed.scenes:
             if scene.title: self.assertTrue(any(c.start-.04<=start+scene.title_delay<c.end for c in cues))

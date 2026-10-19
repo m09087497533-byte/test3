@@ -51,9 +51,23 @@ def emphasis_events(cues):
         if event['text'] in ('НЕ НАКАЗАНИЕ','СТИХ ЗА СТИХОМ','ВЫ УВИДИТЕ ВОЗДАЯНИЕ'):
             event.update(treatment='italic',layout='center',duration=.65)
             if event['effect']=='fade':event['effect']='scroll'
+    # Short labels do not consume the full-screen graphic budget. Keep a full
+    # spoken negation across cue boundaries instead of a detached word fragment.
+    full_negative=re.search(r'\bрезультат\s+(?:был|было|стал)\s+не\s+(?:\w+\s+){0,2}наказан\w*',text,re.I)
+    for event in candidates:
+        event['tier']='major'
+        if event['text']=='НЕ НАКАЗАНИЕ':
+            if full_negative:
+                event.update(text=full_negative.group().upper(),start=round(position(full_negative.start())*30)/30)
+                spoken_end=next((w['end'] for a,b,w in positions if a<=full_negative.end()-1<b),event['start']+2.8)
+                event['end']=max(event['start']+2.8,min(event['start']+5.5,spoken_end+.25))
+            event.update(tier='caption',layout='label',treatment='classic',effect='typewriter',duration=.45)
+    for match in re.finditer(r'\bединственн\w*\s+(?:глагол\w*|слов\w*|источник\w*)',text,re.I):
+        start=round(position(match.start())*30)/30
+        candidates.append(dict(text=match.group().upper(),start=start,end=start+2.6,layout='label',effect='typewriter',decoration='none',duration=.45,priority=3,tier='caption'))
     # For other subjects use only a short, complete phrase that was actually
     # spoken. Existing date/quote emphasis keeps priority; no invented slogans.
-    occupied_minutes={int(e['start']//60) for e in candidates}
+    occupied_minutes={int(e['start']//60) for e in candidates if e.get('tier')!='caption'}
     generic_count=0
     for cue in cues:
         phrase=' '.join(cue.text.split()).strip()
@@ -75,10 +89,12 @@ def emphasis_events(cues):
         if any(abs(event['start']-old['start'])<.6 for old in chosen):continue
         if event['text'] in seen_text:continue
         minute=int(event['start']//60)
-        if minute_count.get(minute,0)>=2:continue
+        tier=event.get('tier','major')
+        bucket=(minute,tier)
+        if minute_count.get(bucket,0)>=(3 if tier=='caption' else 2):continue
         chosen.append(event)
         seen_text.add(event['text'])
-        minute_count[minute]=minute_count.get(minute,0)+1
+        minute_count[bucket]=minute_count.get(bucket,0)+1
     chosen.sort(key=lambda e:e['start'])
     for event,following in zip(chosen,chosen[1:]):
         event['end']=min(event['end'],following['start']-.12)

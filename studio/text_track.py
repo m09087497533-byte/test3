@@ -27,7 +27,17 @@ def event_frame(scene,event,size,elapsed,remaining):
     view=scene.model_copy(update={'title':event.text,'caption':'','title_layout':event.layout,
                                   'title_duration':event.duration,'title_decoration':event.decoration,
                                   'template':'cinema','text_events':[]})
-    if event.treatment!='classic':
+    if event.effect=='marquee':
+        from .render import font
+        w,h=size
+        layer=Image.new('RGBA',size)
+        face=font(max(12,round(132*w/1280)),condensed=True)
+        text=event.text.upper();width=face.getlength(text)
+        span=event.span or (event.elapsed+event.end-event.start)
+        p=min(1,max(0,elapsed/max(.1,span)))
+        x=w*.94-(w*.94+width)*p
+        ImageDraw.Draw(layer).text((x,h*.49),text,font=face,anchor='lm',fill='#e0ed13')
+    elif event.treatment!='classic':
         from .reference_graphics import reference_frame
         layer=reference_frame(event,size,elapsed)
     elif event.layout=='counter':
@@ -64,7 +74,7 @@ def encode_events(scene,size,frames,output):
             elapsed=event.elapsed+(i-start)/30;remaining=(end-i)/30
             # Only the settled middle can be held as one VFR image.
             hold_until=end-6
-            count=hold_until-i if elapsed>=animation_end and i<hold_until else 1
+            count=hold_until-i if event.effect!='marquee' and elapsed>=animation_end and i<hold_until else 1
             save(event_frame(scene,event,size,elapsed,remaining),count);i+=count
         cursor=end
     append(blank_name,frames-cursor)

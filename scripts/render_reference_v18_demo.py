@@ -24,7 +24,6 @@ def main():
         from studio.media import ASSETS,probe
         from studio.models import Project,Scene,TextEvent
         from studio.render import render,FONTS
-        from studio.reference_effects import apply_reference_effects
         from studio.soundplan import sound_plan
         scenes=[]
         for i in range(8):
@@ -47,8 +46,9 @@ def main():
             7:dict(text='КНИГА ЕНОХА',effect='typewriter',duration=.7),
         }
         for index,options in specs.items():scenes[index].text_events=[TextEvent(start=.6,end=3.2,**options)]
-        project=apply_reference_effects(Project(name='Приёмы 1018 — технический показ',scenes=scenes,
-                                              sound_mode='auto',sounds_per_minute=12,sfx_volume=.55,show_subtitles=False))
+        project=Project(name='Приёмы 1018 — технический показ',scenes=scenes,
+                                              sound_mode='auto',sounds_per_minute=12,sfx_volume=.55,show_subtitles=False,effects_version=18)
+        for i,scene in enumerate(project.scenes[:-1]):scene.transition_out=('light_leak','dissolve','zoom','color_wash','cut','slide')[i%6]
         plan=sound_plan(project)
         assert {e['style'] for e in plan}=={'paper','spark','sweep','stamp','chime'},plan
         out=Path(tmp)/'render';out.mkdir()

@@ -16,6 +16,26 @@ def face(size, serif=True):
 def reference_frame(event,size,elapsed):
     w,h=size;scale=w/1280
     layer=Image.new('RGBA',size)
+    if event.treatment in ('red_ink','editorial'):
+        from .render import font,text_block
+        from .title_animation import title_frame
+        from types import SimpleNamespace
+        layer.paste((32,7,16,145) if event.treatment=='red_ink' else (3,7,14,130),(0,0,w,h))
+        glyphs=Image.new('RGBA',size);draw=ImageDraw.Draw(glyphs)
+        red=event.treatment=='red_ink'
+        box=(w*.09,h*.28,w*.82,h*.40)
+        text_block(draw,event.text.upper(),box,round((190 if red else 68)*scale),
+                   '#fa3f58' if red else '#fffbea',serif=red,heavy=red,condensed=not red,center=True)
+        glyphs=title_frame(glyphs,SimpleNamespace(title_duration=event.duration,title_decoration='none'),
+                           'reveal' if red else 'perspective',elapsed)
+        layer.alpha_composite(glyphs)
+        if red and event.decoration=='ring':
+            q=min(1,max(0,elapsed/1.3));points=[]
+            for i in range(max(2,round(200*q))):
+                a=-.4+2*math.pi*1.04*i/199
+                points.append((w*.5+w*.32*math.cos(a),h*.49+h*.15*math.sin(a)-h*.04*math.cos(a)))
+            if q:ImageDraw.Draw(layer).line(points,fill='#f5dcc0',width=max(1,round(2*scale)),joint='curve')
+        return layer
     if event.treatment=='italic':
         # The date phrase sweeps in from the left, then holds still over a dimmed source.
         text=event.text;f=face(round(66*scale),False)

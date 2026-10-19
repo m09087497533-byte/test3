@@ -75,7 +75,8 @@ class ReferenceVisualTests(unittest.TestCase):
         self.assertEqual(revised.subtitles,p.subtitles)
         self.assertEqual(revised.voice_id,p.voice_id);self.assertEqual(revised.music_id,p.music_id)
         self.assertEqual([(s.asset_id,s.offset,s.duration) for s in revised.scenes],[(s.asset_id,s.offset,s.duration) for s in p.scenes])
-        self.assertTrue({'light_leak','color_wash','zoom'}<={s.transition_out for s in revised.scenes})
+        self.assertTrue(all(s.transition_out=='cut' for s in revised.scenes[:-1]),'The same source is reframed, not put through an effect cycle')
+        self.assertTrue(all(s.camera_style!='inherit' for s in revised.scenes))
         self.assertEqual(apply_reference_effects(revised),revised)
 
     def test_stamp_and_letter_reveal_animate_and_then_settle(self):

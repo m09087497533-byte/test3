@@ -46,7 +46,7 @@ def transition_frames(project: Project, index: int) -> int:
     if index >= len(project.scenes)-1 or boundary_style(project, index) == 'cut':
         return 0
     # Leave readable time even in a one-second scene.
-    return min(12, frame_count(project.scenes[index+1])//3)
+    return min(round(project.scenes[index].transition_duration*30), frame_count(project.scenes[index+1])//3)
 
 
 def encode_segment(args: list[str], graph: str, frames: int, output: Path):

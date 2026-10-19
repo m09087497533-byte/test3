@@ -28,22 +28,22 @@ with tempfile.TemporaryDirectory(prefix='kadr18-ui-') as tmp:
                 page.evaluate("""project.effects_version=0;project.sound_mode='manual';project.transition_sounds=true;
                     project.scenes=[{...project.scenes[0],template:'quote',title:'ПЕРВАЯ ФРАЗА',title_sound:'impact'},
                                     {...project.scenes[0],template:'quote',title:'ВТОРАЯ ФРАЗА',title_sound:'impact'}];save()""")
-                page.reload();page.wait_for_function("typeof project!=='undefined' && !!project && project.effects_version===18")
+                page.reload();page.wait_for_function("typeof project!=='undefined' && !!project && project.effects_version===19")
                 assert page.evaluate('project.scenes.map(s=>s.duration)')==[4,4]
                 assert page.evaluate('project.scenes[0].title')=='ПЕРВАЯ ФРАЗА'
-                assert page.evaluate('project.scenes[0].transition_out')=='light_leak'
-                assert page.evaluate('project.scenes[0].title_effect')=='stamp'
+                assert page.evaluate('project.scenes[0].transition_out')=='cut'
+                assert page.evaluate('project.scenes[0].title_effect')=='perspective'
                 assert page.locator('#transition-sounds').is_hidden()
                 assert page.locator('#undo-effects').is_visible()
-                assert page.evaluate("!!localStorage.getItem('kadr-before-effects-v18')")
-                count=len(migrations);page.reload();page.wait_for_function("typeof project!=='undefined' && !!project && project.effects_version===18 && speechAvailable")
+                assert page.evaluate("!!localStorage.getItem('kadr-before-effects-v19')")
+                count=len(migrations);page.reload();page.wait_for_function("typeof project!=='undefined' && !!project && project.effects_version===19 && speechAvailable")
                 assert len(migrations)==count,'Profile reapplied after reload'
                 page.locator('#undo-effects').click()
                 assert page.evaluate('project.sound_mode')=='manual'
                 assert page.evaluate('project.scenes[0].title_effect')=='inherit'
-                assert page.evaluate('project.effects_version')==18
+                assert page.evaluate('project.effects_version')==19
                 page.locator('#reference-effects').click()
-                page.wait_for_function("project.scenes[0].title_effect==='stamp'")
+                page.wait_for_function("project.scenes[0].title_effect==='perspective'")
                 page.select_option('#sound-mode','manual')
                 page.select_option('#title-sound','spark')
                 page.select_option('#title-effect','typewriter')

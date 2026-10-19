@@ -17,6 +17,7 @@ from .render_diagnostics import capabilities
 from .caption_track import burn_captions
 from .text_track import encode_events
 from .video_clock import normalize_clock,require_frames
+from .camera import camera_filter
 
 FONTS = Path(__file__).resolve().parent / 'fonts'
 
@@ -190,17 +191,22 @@ def source_still(scene: Scene, size: tuple[int, int]) -> Image.Image:
 
 
 
+def document_panel(scene,size):
+    w,h=size;panel=Image.new('RGBA',size);draw=ImageDraw.Draw(panel)
+    draw.rectangle((0,0,w*.37,h),fill=(20,26,22,245))
+    draw.line((w*.075,h*.20,w*.14,h*.20),fill='#d9c89c',width=max(2,round(w/400)))
+    text_block(draw,scene.document_title,(w*.07,h*.27,w*.25,h*.23),round(w*.036),'#eee8d7',serif=True)
+    text_block(draw,scene.document_caption,(w*.07,h*.56,w*.25,h*.23),round(w*.021),'#c5c7b9',serif=True)
+    return panel
+
+
 def framed_card(scene,size):
     if scene.asset_id and asset_info(scene.asset_id)['kind']=='image':
         with Image.open(asset_path(scene.asset_id)) as source:
             picture=ImageOps.exif_transpose(source).convert('RGB')
     else:picture=source_still(scene,size)
     if scene.picture_effect=='split':
-        w,h=size;panel=Image.new('RGBA',size);draw=ImageDraw.Draw(panel)
-        draw.rectangle((0,0,w*.37,h),fill=(20,26,22,245))
-        draw.line((w*.075,h*.20,w*.14,h*.20),fill='#d9c89c',width=max(2,round(w/400)))
-        text_block(draw,scene.document_title,(w*.07,h*.27,w*.25,h*.23),round(w*.036),'#eee8d7',serif=True)
-        text_block(draw,scene.document_caption,(w*.07,h*.56,w*.25,h*.23),round(w*.021),'#c5c7b9',serif=True)
+        w,h=size;panel=document_panel(scene,size)
         document=ImageOps.contain(tone(picture,scene),(round(w*.58),round(h*.90)),Image.Resampling.LANCZOS).convert('RGBA')
         panel.alpha_composite(document,(round(w*.68-document.width/2),round((h-document.height)/2)))
         return panel
@@ -272,6 +278,7 @@ def render(project: Project, folder: Path, progress, *, draft=False):
         titles = folder / f'titles-{index}.png'
         (Image.new('RGBA',size) if scene.automatic_text and not scene.text_events else overlay(scene,size,text_only=True)).save(titles)
         is_video = scene.asset_id and asset_info(scene.asset_id)['kind'] == 'video' and scene.template != 'quote'
+        framed=scene.picture_effect in ('inset','split')
         args = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-filter_complex_threads', '1']
         input_start=len(args)
         if is_video:
@@ -281,11 +288,17 @@ def render(project: Project, folder: Path, progress, *, draft=False):
             saturation = '0' if scene.template == 'archive' else '.78'
             base_filter = (f'scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,'
                            f'fps=30,eq=saturation={saturation},tpad=stop_mode=clone:stop={frame_total},setpts=N/(30*TB)')
+            if framed:
+                base_filter=(f'fps=30,setsar=1,eq=saturation={saturation},tpad=stop_mode=clone:stop={frame_total},setpts=N/(30*TB)')
+            elif scene.camera_style!='inherit' and scene.motion:
+                base_filter+=','+camera_filter(scene,size)
         else:
             base = folder / f'base-{index}.jpg'
             tone(source_still(scene, size), scene).save(base, quality=95)
             args += ['-loop', '1', '-framerate', '30', '-i', str(base)]
-            if project.photo_motion == 'smooth' and scene.motion and scene.template != 'quote':
+            if not framed and project.photo_motion=='smooth' and scene.motion and scene.camera_style!='inherit':
+                base_filter=camera_filter(scene,size)
+            elif project.photo_motion == 'smooth' and scene.motion and scene.template != 'quote' and not framed:
                 step = f'(0.5-0.5*cos(PI*on/{max(1,frame_total-1)}))'
                 zoom = f'1+0.035*{step}'
                 x = 'iw/2-iw/zoom/2'
@@ -306,7 +319,15 @@ def render(project: Project, folder: Path, progress, *, draft=False):
         delay = round(scene.title_delay*30)/30
         entrance = max(1, round(scene.title_duration*30))/30
         advanced = effect in ADVANCED or scene.title_decoration != 'none'
-        if scene.text_events:
+        if effect=='marquee' and not scene.text_events:
+            from .models import TextEvent
+            event=TextEvent(text=scene.title or scene.caption,start=delay,end=scene.title_end or scene.duration,
+                            layout='grid',effect='marquee',duration=scene.title_duration,span=(scene.title_end or scene.duration)-delay)
+            animation=folder/f'text-events-{index}.mov'
+            encode_events(scene.model_copy(update={'text_events':[event]}),size,frame_total,animation)
+            args+=['-i',str(animation)]
+            title_filter=f'format=rgba,fps=30,tpad=stop_mode=clone:stop={frame_total},setpts=N/(30*TB)';x,y='0','0'
+        elif scene.text_events:
             animation=folder/f'text-events-{index}.mov'
             encode_events(scene,size,frame_total,animation)
             args += ['-i',str(animation)]
@@ -330,13 +351,35 @@ def render(project: Project, folder: Path, progress, *, draft=False):
             exit_start=max(delay,frame_count(scene)/30-.35)
             x=f'({x})-{w}*pow(min(1,max(0,(t-{exit_start})/.35)),2)'
         picture_graph=f'[0:v]{base_filter}[bg];'
-        if scene.picture_effect in ('inset','split') and not is_video:
+        if framed and is_video:
+            # A live video card, not a frozen source_still. The source is split
+            # before crop so its complete aspect ratio survives in the foreground.
+            maxw,maxh=(round(w*.52),round(h*.84)) if scene.picture_effect=='split' else (round(w*.74),round(h*.76))
+            center=.68 if scene.picture_effect=='split' else .5
+            move=camera_filter(scene,size,alpha=True) if scene.motion and scene.picture_effect!='split' else 'format=rgba'
+            panel_graph='';soft='soft'
+            if scene.picture_effect=='split':
+                panel=folder/f'panel-{index}.png';document_panel(scene,size).save(panel)
+                args+=['-loop','1','-framerate','30','-i',str(panel)]
+                soft='soft_raw';panel_graph='[soft_raw][3:v]overlay=0:0[soft];'
+            picture_graph=(f'[0:v]{base_filter},split=2[bs][ds];'
+                           f'[bs]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},gblur=sigma={w/45}:steps=2,eq=brightness=-0.20[{soft}];'+panel_graph+
+                           f'[ds]format=rgba,scale={maxw}:{maxh}:force_original_aspect_ratio=decrease:force_divisible_by=2,'
+                           f'drawbox=x=0:y=0:w=iw:h=ih:color=0xe5d9b8:thickness=2,'
+                           f'pad={w}:{h}:x={w*center}-iw/2:y=(oh-ih)/2:color=black@0,{move},fade=t=in:st=0:d=0.22:alpha=1[paper];'
+                           '[soft][paper]overlay=0:0[picture];')
+        elif framed:
             card_image=framed_card(scene,size)
+            planned=scene.camera_style!='inherit'
+            if planned:
+                canvas=Image.new('RGBA',size)
+                canvas.alpha_composite(card_image,((w-card_image.width)//2,(h-card_image.height)//2))
+                card_image=canvas
             card=folder/f'card-{index}.png';card_image.save(card)
             args += ['-loop','1','-framerate','30','-i',str(card)]
             repeating=index>0 and project.scenes[index-1].asset_id==scene.asset_id
             entrance='' if repeating else ',fade=t=in:st=0:d=0.22:alpha=1'
-            card_filter=portrait_card_motion(card_image,frame_total,index) if portrait_photo(scene) else 'format=rgba'
+            card_filter=(camera_filter(scene,size,alpha=True) if scene.motion and project.photo_motion=='smooth' and scene.picture_effect!='split' else 'format=rgba') if planned else portrait_card_motion(card_image,frame_total,index) if portrait_photo(scene) else 'format=rgba'
             direction=-1 if index%2 else 1
             picture_graph += (f'[bg]gblur=sigma={w/45}:steps=2,eq=brightness=-0.20[soft];'
                               f'[3:v]{card_filter}{entrance}[paper];'

@@ -39,8 +39,10 @@ def scene_context(project, index):
     footage = stock_video.footage_query(project, index)
     scene = project.scenes[index]
     text = (context['basis']+' '+scene.title+' '+scene.caption).lower()
+    earlier=' '.join(c.text for c in project.subtitles if c.start<sum(round(x.duration*30) for x in project.scenes[:index+1])/30)
+    historical=has_stem(('енох','enoch','древн','старин'),earlier) and has_stem(('книг','рукопис','book','manuscript'),earlier) and not has_stem(('исследован','эксперимент','сегодня','современн','research'),text)
     archive = any(s in text for s in ('рукопис','манускрип','енох','эфиоп','греческ','писание','папирус','летопис','документ','архив'))
-    return {**context, 'semantic': project.semantic_media, 'video_query':footage['query'], 'preferred':'image' if archive else 'video',
+    return {**context, 'historical':historical, 'semantic': project.semantic_media, 'video_query':footage['query'], 'preferred':'image' if archive else 'video',
             'words':topic_words(context['query']+' '+footage['query']+' '+text)}
 
 
@@ -52,7 +54,7 @@ def graphic_indices(project):
     for index,scene in enumerate(project.scenes):
         start=cursor/30;cursor+=round(scene.duration*30);end=cursor/30
         spoken=' '.join(c.text for c in project.subtitles if c.start<end and c.end>start)
-        events=scene.text_events
+        events=[e for e in scene.text_events if e.tier=='major']
         score=max((5 if e.layout in ('grid','number','counter') else 3 if e.treatment in ('neon','chromatic','italic') else 1 for e in events),default=0)
         if re.search(r'(?<!\d)(?:1[5-9]\d{2}|20\d{2})(?!\d)|[«“][^»”]{8,120}[»”]',spoken):score=max(score,4)
         if re.search(r'\b(?:семь|7)\s+признак\w*|\b(?:список|перечень)\b',spoken,re.I):score=max(score,3)
@@ -146,7 +148,8 @@ def relevant_candidate(item, context, *, local=False):
              (('candle',),('candle','свеч'))]
     for triggers,required in primary:
         if has_stem(triggers,query) and not has_stem(required,description) and not (triggers[0]=='manuscript' and named_book):return False
-    historical=has_stem(('manuscript','parchment','ancient','enoch','ethiop','greek','old book'),query)
+    historical=context.get('historical',False) or has_stem(('manuscript','parchment','ancient','enoch','ethiop','greek','old book'),query)
+    if historical and has_stem(('tourist','hiking','camping','turtle','coffee','lilac','bouquet','турист','поход','черепах','кофе','сирен','букет'),description) and not has_stem(('турист','поход','черепах','кофе','сирен','букет'),context.get('basis','')):return False
     if historical and has_stem(('laptop','notebook','ballpoint','computer','office','homework','ноутбук','тетрад','шариков','компьютер','офис'),description):return False
     if has_stem(('old book',),query) and not has_stem(('old','antique','ancient','vintage','aged','historical','manuscript','parchment','старин','древн','рукопис','пергамент'),description):return False
     entities={'ethiop':('эфиоп','ethiop'),'greek':('гречес','greek'),
@@ -217,7 +220,7 @@ def arrange(project, mode, replace, update, cancelled, scene_indices=None, exclu
     for i,scene in enumerate(project.scenes):
         minutes[i]=int((cursor/30)//60)
         for event in scene.text_events:
-            if event.elapsed>0:continue
+            if event.elapsed>0 or event.tier=='caption':continue
             bucket=int((cursor/30+event.start)//60)
             minute_usage[bucket]=minute_usage.get(bucket,0)+1
         if scene.automatic_text and not scene.text_events and i not in targets:

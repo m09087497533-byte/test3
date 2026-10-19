@@ -4,13 +4,13 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Кадр — видеомастерская</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/style.css?v=18">
+  <link rel="stylesheet" href="/static/style.css?v=19">
 </head>
 <body>
 <noscript><p style="padding:24px;background:#f4dfb0;color:#252b25">Для работы мастерской включи JavaScript и запусти приложение командой python3 run.py. Просмотр HTML-файла внутри чата не запускает сервер монтажа.</p></noscript>
 <header class="topbar">
   <a class="brand" href="/" aria-label="Кадр — главная"><span class="brand-mark">к</span>кадр<span class="brand-dot">.</span></a>
-  <span class="edition">ВИДЕОМАСТЕРСКАЯ <span> / 18</span></span>
+  <span class="edition">ВИДЕОМАСТЕРСКАЯ <span> / 19</span></span>
   <div class="top-actions"><span id="save-state">Сохранено в браузере</span><button id="new-project" class="secondary">＋ Новый проект</button><button id="save-project" class="quiet">↓ Проект</button><button id="import-project" class="quiet">Открыть</button><button id="export" class="primary">Экспорт MP4 <span>↗</span></button></div>
 </header>
 <main class="workspace">
@@ -111,7 +111,7 @@
   <aside class="inspector">
     <span class="eyebrow">03 / ОФОРМЛЕНИЕ</span><div class="row"><h2 id="inspector-title">Сцена 01</h2><span class="tiny-tag">РЕДАКТОР</span></div>
     <p id="scene-match" class="match-note hidden"></p>
-    <p id="scene-accents" class="mini-note"></p>
+    <p id="scene-edit-note" class="mini-note"></p><p id="scene-accents" class="mini-note"></p>
     <label class="field-label">Визуальный приём</label>
     <div class="templates" role="group" aria-label="Шаблон сцены">
       <button data-template="cinema"><span class="template-art cinema-art">Аа</span><strong>Кино</strong><small>Тёплый кадр</small></button>
@@ -124,22 +124,22 @@
     <label class="field-label" for="scene-caption">Подпись</label><textarea id="scene-caption" rows="2" maxlength="240" placeholder="Источник, цитата или пояснение"></textarea>
     <div class="scene-quick-actions"><button id="replace-frame" class="secondary">Заменить кадр</button><button id="another-variant" class="secondary">Другой вариант</button><button id="edit-screen-text" class="secondary">Изменить текст на экране</button><button id="regenerate-scene" class="primary">Перегенерировать сцену</button></div>
     <div class="two-fields"><label class="field-label">Длительность, с<input id="scene-duration" type="number" min="1" max="30" step="0.1"></label><label class="field-label">Начало видео, с<input id="scene-offset" type="number" min="0" step="0.1"></label></div>
-    <label class="field-label">Появление текста<select id="title-effect"><option value="inherit">Как в настройках фильма</option><option value="static">Сразу</option><option value="fade">Растворение</option><option value="rise">Подъём снизу</option><option value="slide">Въезд слева</option><option value="scroll">Прокрутка справа налево</option><option value="perspective">Подъём с перспективой</option><option value="reveal">Раскрытие по строке</option><option value="stamp">Мягкий штамп</option><option value="typewriter">Появление по буквам</option></select></label>
+    <label class="field-label">Появление текста<select id="title-effect"><option value="inherit">Как в настройках фильма</option><option value="static">Сразу</option><option value="fade">Растворение</option><option value="rise">Подъём снизу</option><option value="slide">Въезд слева</option><option value="scroll">Прокрутка справа налево</option><option value="perspective">Подъём с перспективой</option><option value="reveal">Раскрытие по строке</option><option value="stamp">Мягкий штамп</option><option value="typewriter">Появление по буквам</option><option value="marquee">Бегущая строка на сетке</option></select></label>
     <div class="two-fields"><label class="field-label">Через, с<input id="title-delay" type="number" min="0" max="29" step="0.033333"></label><label class="field-label">Время появления, с<input id="title-duration" type="number" min="0.033333" max="3" step="0.033333"></label></div>
     <label class="field-label">Выделение текста<select id="title-decoration"><option value="none">Без выделения</option><option value="ring">Рисованная обводка</option><option value="underline">Подчёркивание</option></select></label>
     <label class="check-label"><input id="title-exit" type="checkbox"><span>Уводить текст влево в конце сцены</span></label>
     <label class="field-label" id="manual-title-sound">Звук появления текста<select id="title-sound"><option value="none">Без звука</option><option value="click">Короткий щелчок</option><option value="impact">Низкий удар</option><option value="swish">Воздушный взмах</option><option value="paper">Шелест бумаги</option><option value="sweep">Широкий пролёт</option><option value="chime">Мягкий звон</option><option value="stamp">Штамп</option><option value="spark">Искристый блик</option></select></label>
     <p class="muted small">Время отсчитывается от начала сцены. Анимация видна при просмотре монтажа и в готовом MP4.</p>
-    <label class="check-label"><input type="checkbox" id="scene-motion"><span>Плавное приближение<small>Для неподвижных изображений</small></span></label>
-    <label class="field-label">Движение изображения<select id="motion-style"><option value="push">Приближение</option><option value="pull">Отдаление</option><option value="left">Панорама влево</option><option value="right">Панорама вправо</option></select></label>
+    <label class="check-label"><input type="checkbox" id="scene-motion"><span>Движение камеры<small>Плавный наезд или смена крупности</small></span></label>
+    <label class="field-label">Движение изображения<select id="motion-style"><option value="push">Приближение</option><option value="pull">Отдаление</option><option value="left">Панорама влево</option><option value="right">Панорама вправо</option><option value="detail">Укрупнить деталь по ходу сцены</option><option value="hold">Удержать план</option></select></label>
     <label class="field-label">Переход к следующей сцене<select id="scene-transition"><option value="inherit">Как в настройках фильма</option><option value="cut">Прямая склейка</option><option value="dissolve">Мягкое растворение</option><option value="slide">Плавный сдвиг</option><option value="flash">Световая вспышка</option><option value="blur">Через размытие</option><option value="wipe">Шторка влево</option><option value="light_leak">Тёплая засветка</option><option value="color_wash">Цветовой перелив</option><option value="zoom">Приближение со сменой кадра</option></select></label>
     <button id="clear-asset" class="text-button hidden">Убрать материал из сцены</button>
     <div class="section-divider"></div>
     <div class="row scene-actions"><button id="move-left" class="secondary" title="Сдвинуть сцену влево">←</button><button id="move-right" class="secondary" title="Сдвинуть сцену вправо">→</button><button id="duplicate" class="secondary" title="Дублировать сцену">Копия</button><button id="delete-scene" class="quiet danger" title="Удалить сцену">Удалить</button></div>
     <div class="section-divider"></div>
     <h3>Параметры фильма</h3>
-    <button id="reference-style" class="secondary">Пересобрать автоматически</button>
-    <button id="reference-effects" class="secondary">Применить приёмы из видео</button><button id="undo-effects" class="secondary hidden">Вернуть прежнее оформление</button>
+    <button id="reference-style" class="secondary">Пересобрать планы и смену кадров</button>
+    <button id="reference-effects" class="secondary">Применить логику монтажа из видео</button><button id="undo-effects" class="secondary hidden">Вернуть прежнее оформление</button>
     <button id="undo-rhythm" class="secondary hidden">Вернуть монтаж до изменения ритма</button>
     <p class="muted small">Появления, акценты и спокойный темп назначаются при загрузке субтитров. Здесь можно пересобрать старый проект без настройки сцен.</p>
     <label class="field-label">Звуковые акценты<select id="sound-mode"><option value="auto">Автоматически · редко</option><option value="off">Без эффектов</option><option value="manual">Настроить вручную</option></select></label>
@@ -164,7 +164,7 @@
 <input id="file-visual" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" multiple hidden>
 <input id="file-project" type="file" accept=".json" hidden>
   <dialog id="transcript-dialog"><h2>Исправить фразы</h2><p>Таймкоды и озвучка сохранятся. Текстовые акценты обновятся. Назначенные кадры останутся; для их замены запустите подбор.</p><div id="transcript-fields"></div><button id="transcript-apply" class="primary">Сохранить исправления</button><button id="transcript-close" class="secondary">Отмена</button></dialog>
-  <script src="/static/speech.js?v=18" defer></script>
-  <script src="/static/app.js?v=18" defer></script>
+  <script src="/static/speech.js?v=19" defer></script>
+  <script src="/static/app.js?v=19" defer></script>
 </body>
 </html>
