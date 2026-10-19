@@ -1,0 +1,64 @@
+{
+  "reference": "1017.mp4",
+  "duration_seconds": 60.533333,
+  "candidate_strong_accents_seconds": [
+    15.68,
+    16.68,
+    31.3,
+    42.42
+  ],
+  "candidate_count": 4,
+  "estimated_per_minute": 3.965,
+  "default_auto_rate": 4,
+  "confidence": "provisional; not verified by listening",
+  "method": "Stereo side channel (L-R)/2 at 16 kHz; 20 ms RMS windows; isolated strong peaks above 0.04; inspect against visible title/cut events. This is a conservative candidate list, not a classifier or an exact SFX count.",
+  "limitations": [
+    "Quiet effects may be missed",
+    "Music or recording artifacts can produce transients",
+    "No isolated stems or reliable listening verification available"
+  ],
+  "visuals": [
+    {
+      "time_range": [
+        15.5,
+        16.6
+      ],
+      "effect": "yellow phrase scrolling from right to left"
+    },
+    {
+      "time_range": [
+        16.6,
+        17.2
+      ],
+      "effect": "second yellow phrase enters and settles"
+    },
+    {
+      "time_range": [
+        34.5,
+        35.4
+      ],
+      "effect": "digits reveal and hand-drawn ellipse"
+    },
+    {
+      "time_range": [
+        49.5,
+        50.8
+      ],
+      "effect": "perspective title rises and straightens"
+    }
+  ],
+  "automatic_director_v9": {
+    "usual_shot_seconds": [
+      6,
+      9
+    ],
+    "opening_seconds": [
+      4,
+      5
+    ],
+    "pacing_basis": "User correction: fewer cuts; these ranges are implementation choices, not a measured cadence of the reference. Named-subject changes may justify shorter shots.",
+    "title_selection": "Narration-derived phrases only; scrolling grid thesis, year reveal with ring, perspective emphasis; at least 9 seconds between accents.",
+    "picture_appearance": "Framed document enters and settles over blurred dark background.",
+    "semantic_check": "Text/metadata and named subjects; no pixel recognition."
+  }
+}
