@@ -75,21 +75,17 @@ class App:
         self.audio_label = tk.Label(top, text="Аудио не выбрано", bg=BG, fg=DIM, font=("Arial", 11))
         self.audio_label.pack(side="left", padx=(20, 8))
 
-        controls_one = tk.Frame(self.root, bg=BG)
-        controls_one.pack(fill="x", padx=14, pady=3)
-        controls_two = tk.Frame(self.root, bg=BG)
-        controls_two.pack(fill="x", padx=14, pady=3)
-        self._btn(controls_one, "📂 Аудио", ACCENT, self._pick_audio).pack(side="left")
-        self.transcribe_btn = self._btn(controls_one, "📝 Транскрибировать", GREEN, self._run_transcribe)
-        self.transcribe_btn.pack(side="left", padx=8)
-        self.import_vtt_btn = self._btn(controls_one, "📄 Импорт субтитров", "#45475a", self._import_subtitles)
-        self.import_vtt_btn.pack(side="left")
-        self.autopick_btn = self._btn(controls_two, "✨ Подобрать все футажи", YELLOW, self._auto_pick_all)
-        self.autopick_btn.pack(side="left", padx=8)
-        self.stop_autopick_btn = self._btn(controls_two, "⏹ Стоп", "#f38ba8", self._stop_autopick)
-        # показывается только пока автоподбор реально идёт
-        self.render_btn = self._btn(controls_two, "🚀 Собрать видео", "#f38ba8", self._render)
-        self.render_btn.pack(side="left", padx=8)
+        self.controls_bar = tk.Frame(self.root, bg=BG)
+        self.controls_bar.pack(fill="x", padx=14, pady=3)
+        self.audio_btn = self._btn(self.controls_bar, "📂 Аудио", ACCENT, self._pick_audio)
+        self.transcribe_btn = self._btn(self.controls_bar, "📝 Транскрибировать", GREEN, self._run_transcribe)
+        self.import_vtt_btn = self._btn(self.controls_bar, "📄 Импорт субтитров", "#45475a", self._import_subtitles)
+        self.autopick_btn = self._btn(self.controls_bar, "✨ Подобрать все футажи", YELLOW, self._auto_pick_all)
+        self.render_btn = self._btn(self.controls_bar, "🚀 Собрать видео", "#f38ba8", self._render)
+        self.primary_buttons = [self.audio_btn, self.transcribe_btn, self.import_vtt_btn,
+                                self.autopick_btn, self.render_btn]
+        for button in self.primary_buttons:
+            button.pack(side="left", padx=(0, 8))
 
         status_row = tk.Frame(self.root, bg=BG)
         status_row.pack(fill="x", padx=14, pady=(2, 0))
@@ -100,6 +96,9 @@ class App:
         self.footage_status_label.pack(side="left", padx=(20, 0))
         self._btn(status_row, "Переподобрать сток", YELLOW,
                   lambda: self._auto_pick_all(replace_existing=True)).pack(side="right")
+
+        self.stop_autopick_btn = self._btn(status_row, "⏹ Стоп", "#f38ba8", self._stop_autopick)
+        # Stop stays in the status row so the five main actions keep one row.
 
         tk.Label(self.root, text="Эффекты (можно несколько — чередуются по кругу между сегментами)",
                  bg=BG, fg=DIM, font=("Arial", 10)).pack(anchor="w", padx=14, pady=(6, 0))
@@ -357,25 +356,9 @@ class App:
             return messagebox.showinfo('Акценты','Сначала распознай речь или импортируй SRT/VTT.')
         events=plan_accents(self.project.segments,major_rate=int(self.accent_rate_var.get()))
         if not events:return messagebox.showinfo('Акценты','В этом тексте пока нет подходящих коротких акцентов. Переходы и футажи сохраняются.')
-        dialog=tk.Toplevel(self.root);dialog.title('План текстовых акцентов');dialog.geometry('900x640');dialog.configure(bg=BG)
-        dialog.transient(self.root);dialog.grab_set()
-        tk.Label(dialog,text='Акценты поверх футажей · очередь эффектов остаётся прежней',bg=BG,fg=ACCENT,font=('Arial',12,'bold')).pack(padx=16,pady=12)
-        listing=ttk.Treeview(dialog,columns=('time','text','style'),show='headings',height=7)
-        for key,label,width in [('time','Время',210),('text','Текст из озвучки',375),('style','Появление',250)]:
-            listing.heading(key,text=label);listing.column(key,width=width)
-        listing.pack(fill='x',padx=16)
-        for i,event in enumerate(events):listing.insert('', 'end',iid=str(i),values=(f"{_fmt_vtt(event['start'])}–{_fmt_vtt(event['end'])}",event['text'],event['style_label']))
-        preview=tk.Label(dialog,bg='#101520');preview.pack(padx=16,pady=12)
-        def show(_=None):
-            from accents.track import event_frame
-            choice=listing.selection()
-            if not choice:return
-            event=events[int(choice[0])];elapsed=min((event['end']-event['start'])/2,max(event['duration'],1.4))
-            layer=event_frame(event,(800,450),elapsed,max(.2,event['end']-event['start']-elapsed))
-            image=Image.new('RGBA',layer.size,'#294033');image.alpha_composite(layer);image.thumbnail((780,350))
-            photo=ImageTk.PhotoImage(image.convert('RGB'));preview.configure(image=photo);preview.image=photo
-        listing.bind('<<TreeviewSelect>>',show);listing.selection_set('0');show()
-        tk.Button(dialog,text='Закрыть',command=dialog.destroy,bg=PANEL,fg=FG,padx=20,pady=6).pack(pady=6)
+        from accent_editor import AccentEditor
+        self.accent_editor = AccentEditor(self.root, self.project,
+                                          major_rate=int(self.accent_rate_var.get()))
 
     def _pick_audio(self):
         if self._busy:
@@ -754,6 +737,7 @@ class App:
                     effects=resolved_effects,
                     text_accents=self.project.text_accents,accent_rate=self.project.accent_rate,
                     accent_sounds=self.project.accent_sounds,
+                    accent_overrides=self.project.accent_overrides,
                     log_fn=lambda m: (self._log(m), self._set_activity(m.strip())),
                 )
                 self._log(f"🎉 Готово! {out_path.resolve()}")

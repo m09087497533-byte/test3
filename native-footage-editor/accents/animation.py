@@ -53,6 +53,30 @@ def title_frame(layer, scene, effect, elapsed):
         fraction=ease if effect=='reveal' else math.floor(p*max(1,len(scene.title)))/max(1,len(scene.title))
         right=round(x0+(x1-x0)*fraction)
         if right>x0: result.paste(layer.crop((0,0,right,h)),(0,0))
+    elif effect in ('reveal_right','split'):
+        if effect=='reveal_right':
+            left=round(x1-(x1-x0)*ease);right=x1
+        else:
+            center=(x0+x1)/2;half=(x1-x0)*ease/2
+            left=round(center-half);right=round(center+half)
+        if right>left:result.paste(layer.crop((left,0,right,h)),(left,0))
+    elif effect in ('text_zoom_in','text_zoom_out','pop','stretch','tilt'):
+        back=1+2.70158*(p-1)**3+1.70158*(p-1)**2
+        ratio=(.7+.3*ease if effect=='text_zoom_in' else
+               1.4-.4*ease if effect=='text_zoom_out' else
+               max(.01,back) if effect=='pop' else
+               .85+.15*ease if effect=='tilt' else 1)
+        vertical=max(.01,ease) if effect=='stretch' else ratio
+        scaled=layer.resize((max(1,round(w*ratio)),max(1,round(h*vertical))),Image.Resampling.BICUBIC)
+        if effect=='tilt':scaled=scaled.rotate((1-ease)*-14,resample=Image.Resampling.BICUBIC)
+        result.paste(scaled,((w-scaled.width)//2,(h-scaled.height)//2))
+    elif effect in ('from_left','from_right','from_top','from_bottom','bounce'):
+        back=1+2.70158*(p-1)**3+1.70158*(p-1)**2
+        dx=round((1-ease)*w*(-1 if effect=='from_left' else 1)) if effect in ('from_left','from_right') else 0
+        dy=round((1-ease)*h*(-1 if effect=='from_top' else 1)) if effect in ('from_top','from_bottom') else round((1-back)*h*.35) if effect=='bounce' else 0
+        result.paste(layer,(dx,dy))
+    elif effect=='focus':
+        result=layer.filter(ImageFilter.GaussianBlur((1-ease)*w/85))
     else:
         dx=round(w*(1-ease)) if effect=='scroll' else -round(w*(1-ease)) if effect=='slide' else 0
         dy=round(h*.16*(1-ease)) if effect=='rise' else 0
@@ -60,7 +84,8 @@ def title_frame(layer, scene, effect, elapsed):
     if effect not in ('static','reveal') and p<1:
         if effect in ('scroll','perspective'):
             result=result.filter(ImageFilter.GaussianBlur((1-ease)*w/500))
-        result.putalpha(result.getchannel('A').point(lambda v:round(v*min(1,p*5))))
+        alpha=ease if effect in ('soft_fade','focus') else min(1,p*5)
+        result.putalpha(result.getchannel('A').point(lambda v:round(v*alpha)))
     # Draw one continuous, slightly irregular stroke around the settled title.
     if scene.title_decoration!='none':
         q=max(0,min(1,(elapsed-duration*.65)/.65))

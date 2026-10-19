@@ -24,6 +24,7 @@ class Project:
         self.text_accents = True
         self.accent_sounds = False
         self.accent_rate = 2
+        self.accent_overrides = {}
 
     def ensure_dirs(self):
         self.footage_dir.mkdir(parents=True, exist_ok=True)
@@ -72,10 +73,11 @@ class Project:
     def save(self):
         with self._save_lock:
             self.project_dir.mkdir(parents=True, exist_ok=True)
-            data = {"schema_version": 3, "audio_path": str(self.audio_path),
+            data = {"schema_version": 4, "audio_path": str(self.audio_path),
                     "segments": self.segments, "effects": self.effects,
                     "text_accents": self.text_accents, "accent_sounds": self.accent_sounds,
                     "accent_rate": self.accent_rate,
+                    "accent_overrides": self.accent_overrides,
                     "story_context": self.story_context}
             path = None
             try:
@@ -100,6 +102,8 @@ class Project:
         self.accent_sounds = data.get('accent_sounds', False) is True
         try:self.accent_rate=max(0,min(4,int(data.get('accent_rate',2))))
         except (TypeError,ValueError):self.accent_rate=2
+        from accents.appearances import clean_overrides
+        self.accent_overrides=clean_overrides(data.get('accent_overrides'))
         self.story_context = data.get("story_context", {})
         for i, segment in enumerate(self.segments):
             segment["index"] = i

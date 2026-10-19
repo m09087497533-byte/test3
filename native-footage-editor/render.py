@@ -215,7 +215,7 @@ def _build_timeline_with_gaps(segments, effects, gap_eps=.05, audio_duration=Non
 
 
 def build_video(segments, audio_path, output_path, effects=None, log_fn=print,
-                text_accents=True, accent_rate=2, accent_sounds=False):
+                text_accents=True, accent_rate=2, accent_sounds=False, accent_overrides=None):
     if not segments:
         raise ValueError('Нет сцен для сборки')
     output_path=Path(output_path)
@@ -259,7 +259,7 @@ def build_video(segments, audio_path, output_path, effects=None, log_fn=print,
         if text_accents:
             from accents import plan_accents
             from accents.track import encode_track
-            events=plan_accents(segments,audio_duration,major_rate=accent_rate,fps=FPS)
+            events=plan_accents(segments,audio_duration,major_rate=accent_rate,fps=FPS,overrides=accent_overrides)
             if events:
                 log_fn(f'   Текстовые акценты: {len(events)}; очередь эффектов сохранена')
                 track=tmp/'text-accents.mov'

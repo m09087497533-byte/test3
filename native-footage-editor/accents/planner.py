@@ -2,6 +2,7 @@
 import math
 from types import SimpleNamespace
 from .phrases import emphasis_events
+from .appearances import APPEARANCE_LABELS, accent_id, apply_appearance, clean_overrides
 
 STYLE_LABELS={'red_ink':'Красные цифры с обводкой','neon':'Светящиеся цифры',
               'chromatic':'Дата с цветной тенью','editorial':'Текст с перспективой',
@@ -9,11 +10,11 @@ STYLE_LABELS={'red_ink':'Красные цифры с обводкой','neon':'
               'caption':'Короткая подпись','classic':'Появление текста'}
 
 
-def plan_accents(segments,duration=None,major_rate=2,fps=25):
+def plan_accents(segments,duration=None,major_rate=2,fps=25,overrides=None):
     if not segments:return []
     if duration is None:duration=max(float(s['end']) for s in segments)
     cues=[SimpleNamespace(text=s['text'],start=float(s['start']),end=float(s['end'])) for s in segments]
-    events=[];number=0
+    events=[];number=0;overrides=clean_overrides(overrides)
     for original in emphasis_events(cues,major_rate=max(0,min(4,int(major_rate)))):
         event={k:v for k,v in original.items() if k!='priority'}
         start=max(0,round(event['start']*fps));end=min(math.ceil(duration*fps),round(event['end']*fps))
@@ -27,5 +28,9 @@ def plan_accents(segments,duration=None,major_rate=2,fps=25):
             event['treatment']=('red_ink','neon','chromatic')[number%3];number+=1
         elif event['effect']=='perspective':event['treatment']='editorial'
         event['style_label']=STYLE_LABELS['caption' if event['tier']=='caption' else 'marquee' if event['effect']=='marquee' else event['treatment']]
-        events.append(event)
+        if event['style_label']==STYLE_LABELS['classic']:
+            event['style_label']=APPEARANCE_LABELS.get(event['effect'],event['style_label'])
+        event['id']=accent_id(event,fps)
+        choice=overrides.get(event['id'],{}).get('appearance','auto')
+        events.append(apply_appearance(event,choice))
     return events

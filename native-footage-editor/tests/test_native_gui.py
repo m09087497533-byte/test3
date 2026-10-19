@@ -65,6 +65,10 @@ class NativeWindowTests(unittest.TestCase):
 
     def test_controls_save_reopen_and_scroll(self):
         self.import_srt()
+        self.root.geometry('1000x650');self.pump(.15)
+        positions=[(button.winfo_x(),button.winfo_y(),button.winfo_width()) for button in self.app.primary_buttons]
+        self.assertEqual(len({y for _,y,_ in positions}),1)
+        self.assertTrue(all(x+width<=self.app.controls_bar.winfo_width() for x,_,width in positions))
         self.assertEqual(len(self.app._effect_checkboxes),18)
         for key in ['pan_right','light_leak','color_wash']:
             index=self.main.effects.EFFECT_KEYS.index(key)
@@ -89,10 +93,43 @@ class NativeWindowTests(unittest.TestCase):
     def test_accent_plan_displays_real_graphics_and_closes_cleanly(self):
         self.import_srt();self.app._show_accents();self.pump(.2)
         dialog=next(w for w in self.root.winfo_children() if isinstance(w,self.tk.Toplevel))
-        preview=next(w for w in dialog.winfo_children() if hasattr(w,'image'))
+        preview=dialog.preview
         self.assertGreater(preview.image.width(),500)
         self.screenshot('native-accent-plan.png')
         dialog.destroy();self.app._begin_task();self.app._finish_task()
+
+    def test_edit_appearance_preview_save_apply_all_and_reset(self):
+        from PIL import ImageTk
+        from accents.appearances import APPEARANCE_KEYS,APPEARANCE_LABELS
+        from project import Project
+        self.import_srt();self.app._show_accents();self.pump(.15)
+        dialog=self.app.accent_editor
+        selected=dialog.listing.selection()[0]
+        dialog.appearance_combo.current(APPEARANCE_KEYS.index('from_left'))
+        dialog.appearance_combo.event_generate('<<ComboboxSelected>>');self.pump(.1)
+        first=ImageTk.getimage(dialog.preview.image).tobytes()
+        self.pump(.3)
+        self.assertNotEqual(first,ImageTk.getimage(dialog.preview.image).tobytes())
+        self.assertEqual(self.app.project.accent_overrides[selected],{'appearance':'from_left'})
+        reopened=Project(self.audio);reopened.load()
+        self.assertEqual(reopened.accent_overrides,self.app.project.accent_overrides)
+        dialog.close();self.app._show_accents();self.pump(.1)
+        dialog=self.app.accent_editor
+        self.assertEqual(dialog.style_var.get(),APPEARANCE_LABELS['from_left'])
+        dialog.appearance_combo.current(APPEARANCE_KEYS.index('neon'))
+        dialog.appearance_combo.event_generate('<<ComboboxSelected>>');self.pump(.1)
+        dialog.apply_all()
+        self.assertEqual(len(self.app.project.accent_overrides),len(dialog.events))
+        self.assertTrue(all(e['appearance']=='neon' for e in dialog.events))
+        self.pump(.9)
+        dialog.toggle_play();self.pump(.1)
+        paused=ImageTk.getimage(dialog.preview.image).tobytes();self.pump(.2)
+        self.assertEqual(paused,ImageTk.getimage(dialog.preview.image).tobytes())
+        self.screenshot('native-edit-appearance.png')
+        dialog.reset_all()
+        self.assertEqual(self.app.project.accent_overrides,{})
+        self.assertTrue(all(e['appearance']=='auto' for e in dialog.events))
+        dialog.close()
 
     def test_render_button_runs_real_ffmpeg_with_selected_cycle(self):
         self.import_srt()
@@ -102,16 +139,24 @@ class NativeWindowTests(unittest.TestCase):
         for segment in self.app.project.segments:segment['footage_path']=str(source)
         self.app._set_effect_checkboxes(['light_leak','color_wash','transition_zoom'])
         self.app._on_effects_changed();self.app._refresh_tree()
+        from accents import plan_accents
+        event=plan_accents(self.app.project.segments)[0]
+        self.app.project.accent_overrides={event['id']:{'appearance':'card'}}
         with patch.object(self.main.render,'WIDTH',320),patch.object(self.main.render,'HEIGHT',180), \
              patch.object(self.main.render,'build_video',wraps=self.main.render.build_video) as build:
             self.app._render();self.wait_task()
         self.assertEqual(build.call_args.kwargs['effects'],['light_leak','color_wash','transition_zoom','light_leak'])
         self.assertFalse(build.call_args.kwargs['accent_sounds'])
+        self.assertEqual(build.call_args.kwargs['accent_overrides'],self.app.project.accent_overrides)
         output=self.app.project.project_dir/'final_video.mp4'
         self.assertTrue(output.is_file(),self.app.log.get('1.0','end'))
         count=subprocess.check_output(['ffprobe','-v','error','-select_streams','v:0',
             '-show_entries','stream=nb_frames','-of','csv=p=0',str(output)],text=True).strip()
         self.assertEqual(count,'400')
+        raw=subprocess.check_output(['ffmpeg','-v','error','-ss','1.6','-i',str(output),
+            '-frames:v','1','-pix_fmt','rgb24','-f','rawvideo','-'])
+        pixel=raw[(60*320+40)*3:(60*320+40)*3+3]
+        self.assertGreater(min(pixel),180,'The selected appearance was not applied to the export')
         self.assertTrue(self.messages)
 
 
